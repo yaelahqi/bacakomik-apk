@@ -33,7 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +64,6 @@ import id.pina.bacakomik.ui.theme.PinaRedDeep
 import id.pina.bacakomik.ui.theme.PinaTextPrimary
 import id.pina.bacakomik.ui.theme.PinaTextSecondary
 import id.pina.bacakomik.ui.theme.PinaTextMuted
-import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,12 +73,10 @@ fun HomeScreen(onOpen: (slug: String) -> Unit) {
     val pullState = rememberPullToRefreshState()
     val context = LocalContext.current
 
-    val continueReading by remember {
-        derivedStateOf {
-            runBlocking {
-                runCatching { HistoryRepo.getHistory(context).firstOrNull() }.getOrNull()
-            }
-        }
+    val continueReading by produceState<id.pina.bacakomik.data.repo.HistoryEntry?>(initialValue = null) {
+        runCatching { HistoryRepo.observe(context).collect { list ->
+            value = list.maxByOrNull { it.readAt }
+        } }
     }
 
     PullToRefreshBox(
