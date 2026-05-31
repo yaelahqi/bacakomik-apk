@@ -20,8 +20,29 @@ class PinaKomikApp : Application() {
     override fun onCreate() {
         super.onCreate()
         installCrashLogger()
+        beacon("app_oncreate")
         // On startup, try to upload any pending crash log from previous session
         uploadPendingCrash()
+    }
+
+    private fun beacon(stage: String) {
+        thread(start = true, isDaemon = true, name = "beacon-$stage") {
+            runCatching {
+                val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                val payload = "BEACON: $stage @ $ts\n" +
+                    "Version: ${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE})\n" +
+                    "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
+                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n"
+                uploadString(payload)
+            }
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun beaconStatic(ctx: Application, stage: String) {
+            (ctx as? PinaKomikApp)?.beacon(stage)
+        }
     }
 
     private fun crashFile(): File {
