@@ -122,7 +122,7 @@ fun SettingsScreen(
             // Section 1: Umum
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium.copy(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -172,7 +172,7 @@ fun SettingsScreen(
             // Section 2: Reader
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium.copy(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -209,7 +209,7 @@ fun SettingsScreen(
             // Section 3: Data
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium.copy(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
