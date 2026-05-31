@@ -25,7 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import id.pina.bacakomik.ui.components.ComicCard
 import id.pina.bacakomik.ui.components.EmptyBox
 import id.pina.bacakomik.ui.components.ErrorBox
-import id.pina.bacakomik.ui.components.LoadingBox
+import id.pina.bacakomik.ui.components.GridSkeleton
 
 @Composable
 fun SearchScreen(onOpen: (slug: String) -> Unit) {
@@ -46,7 +46,7 @@ fun SearchScreen(onOpen: (slug: String) -> Unit) {
         )
 
         when {
-            state.loading -> LoadingBox()
+            state.loading -> GridSkeleton(itemCount = 9)
             state.error != null -> ErrorBox("Gagal: ${state.error}")
             state.query.isBlank() -> EmptyBox("Mulai mengetik untuk mencari")
             state.items.isEmpty() -> EmptyBox("Tidak ada hasil untuk \"${state.query}\"")
