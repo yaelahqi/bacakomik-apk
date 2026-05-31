@@ -117,14 +117,14 @@ fun HomeScreen(onOpen: (slug: String) -> Unit) {
             }
 
             // Continue reading hero
-            if (continueReading != null) {
+            continueReading?.let { reading ->
                 item {
                     Spacer(Modifier.height(12.dp))
                     HeroContinueReading(
-                        title = continueReading!!.title,
-                        chapter = continueReading!!.chapterTitle ?: "",
-                        cover = continueReading!!.cover,
-                        onClick = { onOpen(continueReading!!.slug) },
+                        title = reading.title,
+                        chapter = reading.chapterTitle ?: "",
+                        cover = reading.cover,
+                        onClick = { onOpen(reading.slug) },
                     )
                 }
             }
@@ -143,17 +143,24 @@ fun HomeScreen(onOpen: (slug: String) -> Unit) {
             } else if (state.error != null && state.items.isEmpty()) {
                 item { ErrorBox("Gagal memuat: ${state.error}") }
             } else {
-                item {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        modifier = Modifier.height(280.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
+                // Komik Populer — top 6 sebagai 2x3 grid (manual, bukan nested LazyGrid)
+                val popular = state.items.take(6)
+                items(popular.chunked(3).size) { rowIdx ->
+                    val row = popular.chunked(3)[rowIdx]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        userScrollEnabled = false,
                     ) {
-                        itemsIndexed(state.items.take(6), key = { _, it -> it.slug }) { _, item ->
-                            ComicCard(item) { onOpen(item.slug) }
+                        row.forEach { item ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                ComicCard(item) { onOpen(item.slug) }
+                            }
+                        }
+                        // Fill remaining cells in last row
+                        repeat(3 - row.size) {
+                            Spacer(Modifier.weight(1f))
                         }
                     }
                 }

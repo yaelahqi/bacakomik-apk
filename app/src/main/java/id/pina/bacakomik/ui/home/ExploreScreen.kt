@@ -181,17 +181,23 @@ fun ExploreScreen(onOpen: (slug: String) -> Unit) {
         } else if (error != null && items.isEmpty()) {
             item { ErrorBox("Gagal memuat: $error") }
         } else {
-            item {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.height((items.size / 3 * 230 + 100).coerceAtMost(2000).dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+            // Manual chunked rows — bukan nested LazyVerticalGrid (anti-crash)
+            val rows = items.chunked(3)
+            items(rows.size) { rowIdx ->
+                val row = rows[rowIdx]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    userScrollEnabled = false,
                 ) {
-                    itemsIndexed(items, key = { _, it -> it.slug }) { _, item ->
-                        ComicCard(item) { onOpen(item.slug) }
+                    row.forEach { item ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            ComicCard(item) { onOpen(item.slug) }
+                        }
+                    }
+                    repeat(3 - row.size) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
