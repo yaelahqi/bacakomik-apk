@@ -51,7 +51,7 @@ private val AppTypography = Typography(
 )
 
 @Composable
-fun BacaKomikTheme(
+fun PinaKomikTheme(
     darkTheme: Boolean = androidx.compose.foundation.isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

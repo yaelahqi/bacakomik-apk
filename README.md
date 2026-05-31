@@ -1,11 +1,11 @@
-# BacaKomik (Android Native)
+# Pina Komik (Android Native)
 
 Native Android app built with Kotlin + Jetpack Compose. Inspired by Komiku+ UI, powered by our own backend at `https://komik.pina.my.id`.
 
 ## Build
 
 GitHub Actions auto-builds debug APK on every push to `main`.
-Download from the **Actions** tab → latest run → **Artifacts → BacaKomik-apk**.
+Download from the **Actions** tab → latest run → **Artifacts → PinaKomik-apk**.
 
 ## Local build
 

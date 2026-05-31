@@ -82,4 +82,19 @@ object LibraryRepo {
             p[KEY] = json.encodeToString(ListSerializer(LibraryEntry.serializer()), next)
         }
     }
+
+    suspend fun addEntries(ctx: Context, entries: List<LibraryEntry>) {
+        ctx.dataStore.edit { p ->
+            val cur = p[KEY]?.let {
+                runCatching { json.decodeFromString<List<LibraryEntry>>(it) }.getOrNull()
+            } ?: emptyList()
+            val slugs = entries.map { it.slug }.toSet()
+            val filtered = cur.filter { it.slug !in slugs }
+            p[KEY] = json.encodeToString(ListSerializer(LibraryEntry.serializer()), filtered + entries)
+        }
+    }
+
+    suspend fun clear(ctx: Context) {
+        ctx.dataStore.edit { it.clear() }
+    }
 }

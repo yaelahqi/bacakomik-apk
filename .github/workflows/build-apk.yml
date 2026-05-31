@@ -1,4 +1,4 @@
-name: Build BacaKomik APK
+name: Build PinaKomik APK
 
 on:
   push:
@@ -53,17 +53,17 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/BacaKomik.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/PinaKomik.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BacaKomik-apk
-          path: dist/BacaKomik.apk
+          name: PinaKomik-apk
+          path: dist/PinaKomik.apk
           if-no-files-found: error
 
       - name: Create release on tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/BacaKomik.apk
+          files: dist/PinaKomik.apk

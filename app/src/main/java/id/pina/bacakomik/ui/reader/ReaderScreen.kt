@@ -6,13 +6,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +31,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -39,6 +51,8 @@ import id.pina.bacakomik.data.api.KomikApi
 import id.pina.bacakomik.data.repo.LibraryRepo
 import id.pina.bacakomik.ui.components.ErrorBox
 import id.pina.bacakomik.ui.components.LoadingBox
+import id.pina.bacakomik.ui.settings.SettingsDataStore
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +63,16 @@ fun ReaderScreen(
 ) {
     val vm: ReaderViewModel = viewModel()
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     LaunchedEffect(slug) { vm.load(slug) }
     val state by vm.state.collectAsStateWithLifecycle()
     val data = state.data
+
+    // Reading mode: 0 = vertical, 1 = horizontal
+    var readingMode by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        readingMode = SettingsDataStore.getReadingMode(ctx)
+    }
 
     LaunchedEffect(data) {
         val d = data ?: return@LaunchedEffect
@@ -106,6 +127,22 @@ fun ReaderScreen(
                 }
             }
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    readingMode = if (readingMode == 0) 1 else 0
+                    scope.launch { SettingsDataStore.setReadingMode(ctx, readingMode) }
+                },
+                containerColor = Color(0x99333333),
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(0.dp),
+            ) {
+                Icon(
+                    if (readingMode == 0) Icons.Default.SwapHoriz else Icons.Default.ViewColumn,
+                    contentDescription = "Toggle reading mode",
+                )
+            }
+        },
     ) { padding ->
         Box(
             Modifier
@@ -116,28 +153,57 @@ fun ReaderScreen(
             when {
                 state.loading -> LoadingBox()
                 state.error != null -> ErrorBox("Gagal memuat: ${state.error}")
-                data != null -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(data.pages, key = { it }) { page ->
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(KomikApi.imageUrl(page))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillWidth,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    item {
-                        Text(
-                            text = "— Akhir chapter —",
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                        )
+                data != null -> {
+                    if (readingMode == 1) {
+                        // Horizontal pager mode
+                        val pagerState = rememberPagerState(pageCount = { data.pages.size })
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) { page ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(KomikApi.imageUrl(data.pages[page]))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillHeight,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(600.dp),
+                                )
+                            }
+                        }
+                    } else {
+                        // Vertical mode (original)
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(data.pages, key = { it }) { page ->
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(KomikApi.imageUrl(page))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillWidth,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            item {
+                                Text(
+                                    text = "— Akhir chapter —",
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }

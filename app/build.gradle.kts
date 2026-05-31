@@ -13,8 +13,8 @@ android {
         applicationId = "id.pina.bacakomik"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "2.0.0"
 
         buildConfigField("String", "API_BASE", "\"https://komik.pina.my.id\"")
     }
@@ -80,6 +80,9 @@ dependencies {
 
     // DataStore for prefs (library/history)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Foundation (HorizontalPager)
+    implementation("androidx.compose.foundation:foundation:1.7.0")
 
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.0.1")

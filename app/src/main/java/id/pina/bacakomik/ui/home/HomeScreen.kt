@@ -43,7 +43,7 @@ fun HomeScreen(onOpen: (slug: String) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         Text(
-            text = "BacaKomik",
+            text = "Pina Komik",
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp),
         )

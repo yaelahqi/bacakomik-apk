@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,14 +26,17 @@ import id.pina.bacakomik.ui.home.HomeScreen
 import id.pina.bacakomik.ui.library.LibraryScreen
 import id.pina.bacakomik.ui.reader.ReaderScreen
 import id.pina.bacakomik.ui.search.SearchScreen
+import id.pina.bacakomik.ui.settings.ImportScreen
+import id.pina.bacakomik.ui.settings.SettingsScreen
 
 sealed class Tab(val route: String, val label: String, val icon: @Composable () -> Unit) {
     object Home : Tab("home", "Home", { Icon(Icons.Outlined.Home, null) })
     object Search : Tab("search", "Search", { Icon(Icons.Outlined.Search, null) })
     object Library : Tab("library", "Library", { Icon(Icons.Outlined.Bookmark, null) })
+    object Settings : Tab("settings", "Settings", { Icon(Icons.Outlined.Settings, null) })
 }
 
-private val Tabs = listOf(Tab.Home, Tab.Search, Tab.Library)
+private val Tabs = listOf(Tab.Home, Tab.Search, Tab.Library, Tab.Settings)
 
 @Composable
 fun AppRoot() {
@@ -79,6 +83,15 @@ private fun AppNavGraph(nav: NavHostController, padding: PaddingValues) {
         composable(Tab.Search.route) { SearchScreen(onOpen = { nav.navigate("manga/$it") }) }
         composable(Tab.Library.route) {
             LibraryScreen(onOpen = { nav.navigate("manga/$it") })
+        }
+        composable(Tab.Settings.route) {
+            SettingsScreen(
+                onBack = { nav.popBackStack() },
+                onImport = { nav.navigate("import") },
+            )
+        }
+        composable("import") {
+            ImportScreen(onBack = { nav.popBackStack() })
         }
         composable("manga/{slug}") {
             val slug = it.arguments?.getString("slug") ?: return@composable
