@@ -157,10 +157,10 @@ private fun DetailContent(
         }
         if (manga.genres.isNotEmpty()) {
             item {
-                androidx.compose.foundation.layout.FlowRow(
+                androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    manga.genres.forEach { g ->
+                    androidx.compose.foundation.lazy.items(manga.genres) { g ->
                         AssistChip(onClick = {}, label = { Text(g) })
                     }
                 }
