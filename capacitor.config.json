@@ -1,9 +1,0 @@
-{
-  "appId": "id.pina.bacakomik",
-  "appName": "BacaKomik",
-  "webDir": "www",
-  "server": {
-    "url": "https://komik.pina.my.id/app",
-    "androidScheme": "https"
-  }
-}

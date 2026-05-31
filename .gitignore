@@ -1,30 +1,13 @@
-# Node
-node_modules/
-npm-debug.log
-
-# Android build outputs
-android/app/build/
-android/build/
-android/.gradle/
-android/local.properties
-android/app/release/
-android/captures/
-*.iml
 .gradle/
-
-# Android Studio
+build/
+local.properties
 .idea/
-*.hprof
-
-# APK
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
 *.apk
 *.aab
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-*.swp
-*.swo
+*.keystore
+keystore.properties

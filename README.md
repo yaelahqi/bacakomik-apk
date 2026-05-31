@@ -1,29 +1,33 @@
-# BacaKomik APK
+# BacaKomik (Android Native)
 
-Capacitor-based Android wrapper for [komik.pina.my.id](https://komik.pina.my.id/app).
+Native Android app built with Kotlin + Jetpack Compose. Inspired by Komiku+ UI, powered by our own backend at `https://komik.pina.my.id`.
 
-## Auto build
+## Build
 
-Every push to `main` triggers GitHub Actions to build a fresh debug APK.
+GitHub Actions auto-builds debug APK on every push to `main`.
+Download from the **Actions** tab → latest run → **Artifacts → BacaKomik-apk**.
 
-Download the latest APK from the [Actions tab](../../actions) → click latest workflow run → download `BacaKomik-apk` artifact.
-
-For tagged releases (`git tag v1.0.0 && git push --tags`), the APK is auto-attached to a GitHub Release.
-
-## Local development
+## Local build
 
 ```bash
-npm install
-npx cap sync android
-cd android
-./gradlew assembleDebug
+./gradlew :app:assembleDebug
+# APK -> app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Output APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+Requirements: JDK 17, Android SDK 34, ANDROID_HOME set.
 
-## Stack
+## API endpoints (consumed)
 
-- Capacitor 8
-- Android (Java)
-- Loads `https://komik.pina.my.id/app` directly via WebView
-- Hardware back button → `WebView.goBack()`
+- `GET /api/v1/list?page=1&type=all&order=update`
+- `GET /api/v1/search?q=...`
+- `GET /api/v1/manga/{slug}`
+- `GET /api/v1/chapter/{slug...}`
+- `GET /api/img?u=...` (CDN proxy)
+
+## Tech
+
+- Kotlin 2.0 + Jetpack Compose Material3
+- Ktor + OkHttp for networking
+- Coil for images
+- DataStore for library/history
+- Navigation Compose
