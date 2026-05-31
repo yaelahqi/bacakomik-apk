@@ -2,6 +2,7 @@ package id.pina.bacakomik.ui.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -157,10 +159,13 @@ private fun DetailContent(
         }
         if (manga.genres.isNotEmpty()) {
             item {
-                androidx.compose.foundation.lazy.LazyRow(
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .fillMaxWidth(),
                 ) {
-                    androidx.compose.foundation.lazy.items(manga.genres) { g ->
+                    manga.genres.forEach { g ->
                         AssistChip(onClick = {}, label = { Text(g) })
                     }
                 }
