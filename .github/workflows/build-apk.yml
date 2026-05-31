@@ -44,7 +44,13 @@ jobs:
           ls -la node_modules/@capacitor/cli/bin/ || true
 
       - name: Capacitor sync Android
-        run: node node_modules/@capacitor/cli/bin/capacitor sync android --inline
+        env:
+          CI: "true"
+        run: |
+          node --version
+          node node_modules/@capacitor/cli/bin/capacitor --version
+          node node_modules/@capacitor/cli/bin/capacitor sync android --inline --verbose 2>&1
+          echo "EXIT_CODE=$?"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
