@@ -9,47 +9,69 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import id.pina.bacakomik.data.api.KomikApi
+import id.pina.bacakomik.data.repo.LibraryEntry
 import id.pina.bacakomik.data.repo.HistoryEntry
 import id.pina.bacakomik.ui.components.EmptyBox
-import id.pina.bacakomik.ui.components.ListSkeleton
+import id.pina.bacakomik.ui.components.GridSkeleton
+import id.pina.bacakomik.ui.theme.PinaNavy
+import id.pina.bacakomik.ui.theme.PinaNavyCard
+import id.pina.bacakomik.ui.theme.PinaNavyElev
+import id.pina.bacakomik.ui.theme.PinaRed
+import id.pina.bacakomik.ui.theme.PinaTextPrimary
+import id.pina.bacakomik.ui.theme.PinaTextSecondary
+import id.pina.bacakomik.ui.theme.PinaTextMuted
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(onOpen: (slug: String) -> Unit) {
     val vm: LibraryViewModel = viewModel()
@@ -57,167 +79,199 @@ fun LibraryScreen(onOpen: (slug: String) -> Unit) {
     LaunchedEffect(Unit) { vm.load(ctx) }
     val state by vm.state.collectAsStateWithLifecycle()
     val pullState = rememberPullToRefreshState()
+    var query by remember { mutableStateOf("") }
 
-    Column(Modifier.fillMaxSize()) {
+    val activeTab = state.tab
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(PinaNavy),
+    ) {
+        // ── Title ──
         Text(
-            text = "Library",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp),
+            text = "Favorit",
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 26.sp),
+            color = PinaTextPrimary,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
         )
 
-        // Tab Card Row
+        // ── Pill toggle: Favorit | Riwayat ──
         Row(
             modifier = Modifier
+                .padding(horizontal = 20.dp)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .clip(RoundedCornerShape(20.dp))
+                .background(PinaNavyCard),
         ) {
-            val activeTab = state.tab
-            listOf(Tab.FAVORITES to "Favorit", Tab.HISTORY to "History").forEach { (tab, label) ->
+            listOf(Tab.FAVORITES to "Favorit", Tab.HISTORY to "Riwayat").forEach { (tab, label) ->
                 val isActive = activeTab == tab
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else Color.Transparent
-                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isActive) Color.White else Color.Transparent)
                         .clickable { vm.setTab(tab) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (isActive) MaterialTheme.colorScheme.primary
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (isActive) PinaNavy else PinaTextSecondary,
                     )
                 }
             }
         }
 
-        when {
-            state.loading -> ListSkeleton(itemCount = 6)
-            state.tab == Tab.FAVORITES && state.all.isEmpty() ->
-                EmptyBox("Belum ada komik tersimpan.\nTap ikon bookmark di halaman komik.")
-            state.tab == Tab.HISTORY && state.historyItems.isEmpty() ->
-                EmptyBox("Belum ada riwayat baca.\nMulai baca komik untuk melihat riwayat.")
-            else -> {
-                PullToRefreshBox(
-                    isRefreshing = state.refreshing,
-                    onRefresh = { vm.refresh() },
-                    state = pullState,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    val listState = rememberLazyListState()
-                    val nearBottom by remember {
-                        derivedStateOf {
-                            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                            val visibleSize = if (state.tab == Tab.FAVORITES) state.visible.size else state.visibleHistory.size
-                            last >= visibleSize - 3
-                        }
-                    }
-                    LaunchedEffect(nearBottom, state.visible.size, state.hasMore, state.visibleHistory.size, state.hasMoreHistory) {
-                        if (nearBottom) vm.loadMore()
-                    }
+        Spacer(Modifier.height(10.dp))
 
-                    if (state.tab == Tab.FAVORITES) {
-                        FavoritesList(
-                            state = state,
-                            listState = listState,
-                            onOpen = onOpen,
-                            onLongPress = { slug ->
-                                vm.removeFromFavorites(ctx, slug)
-                            },
-                        )
-                    } else {
-                        HistoryList(
-                            state = state,
-                            listState = listState,
-                            onOpen = onOpen,
-                            onLongPress = { entry ->
-                                vm.removeFromHistory(ctx, entry)
-                            },
-                        )
+        // ── Search bar ──
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(PinaNavyCard)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Search, null, tint = PinaTextMuted, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Search...", style = MaterialTheme.typography.bodyMedium, color = PinaTextMuted)
+        }
+
+        // ── Delete All button (History tab only) ──
+        if (activeTab == Tab.HISTORY) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(PinaNavyCard)
+                        .clickable { vm.clearHistory(ctx) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.Delete, null, tint = PinaTextMuted, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Hapus Semua", style = MaterialTheme.typography.bodySmall, color = PinaTextMuted)
+                }
+            }
+        }
+
+        // ── Section header ──
+        val sectionTitle = if (activeTab == Tab.FAVORITES) "Daftar Favorit" else "Riwayat Baca"
+        val sectionSub = if (activeTab == Tab.FAVORITES) "Baca kembali manga favoritmu" else "Komik terakhir yang kamu baca"
+        Text(
+            text = sectionTitle,
+            style = MaterialTheme.typography.titleMedium,
+            color = PinaTextPrimary,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+        Text(
+            text = sectionSub,
+            style = MaterialTheme.typography.bodySmall,
+            color = PinaTextSecondary,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Content ──
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = { vm.refresh() },
+            state = pullState,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when {
+                state.loading -> GridSkeleton(itemCount = 6)
+                activeTab == Tab.FAVORITES && state.all.isEmpty() ->
+                    EmptyBox("Belum ada komik tersimpan.\nTap bookmark di halaman komik.")
+                activeTab == Tab.HISTORY && state.historyItems.isEmpty() ->
+                    EmptyBox("Belum ada riwayat baca.")
+                activeTab == Tab.FAVORITES -> {
+                    val filtered = state.all.filter {
+                        query.isBlank() || it.title.contains(query, ignoreCase = true)
                     }
+                    FavoritesGrid(filtered, onOpen, onLongPress = { vm.removeFromFavorites(ctx, it.slug) })
+                }
+                else -> {
+                    val filtered = state.historyItems.filter {
+                        query.isBlank() || it.title.contains(query, ignoreCase = true)
+                    }
+                    HistoryList(filtered, onOpen, onLongPress = { vm.removeFromHistory(ctx, it) })
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FavoritesList(
-    state: LibraryUiState,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+private fun FavoritesGrid(
+    items: List<LibraryEntry>,
     onOpen: (String) -> Unit,
-    onLongPress: (String) -> Unit,
+    onLongPress: (LibraryEntry) -> Unit,
 ) {
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(state.visible, key = { it.slug }) { entry ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .combinedClickable(
-                        onClick = { onOpen(entry.slug) },
-                        onLongClick = { onLongPress(entry.slug) },
-                    )
-                    .padding(8.dp),
-            ) {
-                Box(
-                    Modifier
-                        .size(width = 56.dp, height = 80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                ) {
-                    AsyncImage(
-                        model = KomikApi.imageUrl(entry.cover),
-                        contentDescription = entry.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+        itemsIndexed(items, key = { _, it -> it.slug }) { _, item ->
+            Box {
+                // Card
                 Column(
                     modifier = Modifier
-                        .padding(start = 12.dp)
-                        .fillMaxWidth(),
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PinaNavyCard)
+                        .combinedClickable(
+                            onClick = { onOpen(item.slug) },
+                            onLongClick = { onLongPress(item) },
+                        )
+                        .padding(8.dp),
                 ) {
+                    AsyncImage(
+                        model = KomikApi.imageUrl(item.cover),
+                        contentDescription = item.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        entry.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        text = item.title,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = PinaTextPrimary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        lineHeight = 14.sp,
                     )
-                    Text(
-                        entry.type,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    entry.lastChapterTitle?.let {
+                    item.lastChapterTitle?.let {
                         Text(
-                            "Terakhir: $it",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PinaRed,
+                            maxLines = 1,
                         )
                     }
                 }
-            }
-        }
-        if (state.hasMore) {
-            item {
+                // UP badge
                 Box(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(PinaRed)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
-                    CircularProgressIndicator()
+                    Text("UP", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -227,77 +281,52 @@ private fun FavoritesList(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryList(
-    state: LibraryUiState,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+    items: List<HistoryEntry>,
     onOpen: (String) -> Unit,
     onLongPress: (HistoryEntry) -> Unit,
 ) {
+    val listState = rememberLazyListState()
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(state.visibleHistory, key = { "${it.slug}_${it.chapterSlug}" }) { entry ->
+        items(items, key = { "${it.slug}_${it.chapterSlug}" }) { entry ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(PinaNavyCard)
                     .combinedClickable(
                         onClick = { onOpen(entry.slug) },
                         onLongClick = { onLongPress(entry) },
                     )
-                    .padding(8.dp),
+                    .padding(10.dp),
             ) {
-                Box(
-                    Modifier
-                        .size(width = 56.dp, height = 80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                ) {
-                    AsyncImage(
-                        model = KomikApi.imageUrl(entry.cover),
-                        contentDescription = entry.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-                Column(
+                AsyncImage(
+                    model = KomikApi.imageUrl(entry.cover),
+                    contentDescription = entry.title,
                     modifier = Modifier
-                        .padding(start = 12.dp)
-                        .fillMaxWidth(),
-                ) {
+                        .size(56.dp, 76.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                     Text(
                         entry.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = PinaTextPrimary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    entry.chapterTitle?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        formatRelativeTime(entry.readAt),
+                        "Terakhir di baca ${entry.chapterTitle ?: ""}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        color = PinaTextSecondary,
                     )
-                }
-            }
-        }
-        if (state.hasMoreHistory) {
-            item {
-                Box(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
                 }
             }
         }
@@ -312,9 +341,6 @@ private fun formatRelativeTime(timestamp: Long): String {
         diff < TimeUnit.HOURS.toMillis(1) -> "${TimeUnit.MILLISECONDS.toMinutes(diff)} menit lalu"
         diff < TimeUnit.DAYS.toMillis(1) -> "${TimeUnit.MILLISECONDS.toHours(diff)} jam lalu"
         diff < TimeUnit.DAYS.toMillis(7) -> "${TimeUnit.MILLISECONDS.toDays(diff)} hari lalu"
-        else -> {
-            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        }
+        else -> SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(timestamp))
     }
 }

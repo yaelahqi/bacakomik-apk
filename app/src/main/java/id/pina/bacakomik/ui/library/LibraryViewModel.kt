@@ -111,6 +111,12 @@ class LibraryViewModel : ViewModel() {
         }
     }
 
+    fun clearHistory(ctx: Context) {
+        viewModelScope.launch {
+            HistoryRepo.clear(ctx)
+        }
+    }
+
     fun removeFromHistory(ctx: Context, entry: HistoryEntry) {
         viewModelScope.launch {
             HistoryRepo.removeHistory(ctx, entry.slug, entry.chapterSlug)
