@@ -50,7 +50,7 @@ jobs:
           set +e
           node --version
           node node_modules/@capacitor/cli/bin/capacitor --version
-          node node_modules/@capacitor/cli/bin/capacitor sync android --inline --verbose > /tmp/cap-sync.log 2>&1
+          node node_modules/@capacitor/cli/bin/capacitor sync android --inline > /tmp/cap-sync.log 2>&1
           EC=$?
           echo "EXIT_CODE=$EC"
           echo "===== CAP SYNC LOG ====="
