@@ -50,7 +50,7 @@ import id.pina.bacakomik.ui.components.ErrorBox
 import id.pina.bacakomik.ui.components.LoadingBox
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(
     slug: String,

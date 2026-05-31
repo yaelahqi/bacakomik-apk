@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 private val Context.dataStore by preferencesDataStore("library")
@@ -55,7 +56,7 @@ object LibraryRepo {
                     type = item.type,
                 )
             }
-            p[KEY] = json.encodeToString(next)
+            p[KEY] = json.encodeToString(ListSerializer(LibraryEntry.serializer()), next)
         }
         return added
     }
@@ -78,7 +79,7 @@ object LibraryRepo {
                     )
                 else it
             }
-            p[KEY] = json.encodeToString(next)
+            p[KEY] = json.encodeToString(ListSerializer(LibraryEntry.serializer()), next)
         }
     }
 }
