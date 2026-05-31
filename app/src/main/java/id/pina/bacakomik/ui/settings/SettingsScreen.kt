@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Eye
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
@@ -195,7 +195,7 @@ fun SettingsScreen(onBack: () -> Unit, onImport: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Outlined.Eye,
+                    Icons.Outlined.Visibility,
                     contentDescription = null,
                     tint = PinaTextMuted,
                     modifier = Modifier.size(22.dp),

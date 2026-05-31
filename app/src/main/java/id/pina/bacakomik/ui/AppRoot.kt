@@ -18,11 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.Compass
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Compass
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -63,7 +63,7 @@ sealed class Tab(
     val outlineIcon: ImageVector,
 ) {
     object Home : Tab("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
-    object Explore : Tab("explore", "Explore", Icons.Filled.Compass, Icons.Outlined.Compass)
+    object Explore : Tab("explore", "Explore", Icons.Filled.Explore, Icons.Outlined.Explore)
     object Favorit : Tab("favorit", "Favorit", Icons.Filled.Bookmark, Icons.Outlined.Bookmark)
     object Me : Tab("me", "Me", Icons.Filled.Person, Icons.Outlined.Person)
 }

@@ -210,6 +210,7 @@ fun LibraryScreen(onOpen: (slug: String) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FavoritesGrid(
     items: List<LibraryEntry>,
