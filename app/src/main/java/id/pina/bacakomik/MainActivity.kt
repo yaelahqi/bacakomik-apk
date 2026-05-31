@@ -1,30 +1,31 @@
 package id.pina.bacakomik
 
+import android.app.Activity
 import android.os.Bundle
 import android.util.Log
+import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.ComponentActivity
 
 /**
- * v2.0.7 — SMOKE TEST
- * Bare minimum: plain View, zero Compose.
- * If this shows "Hello Pina Komik" = bug is in Compose tree.
- * If this crashes = bug is in Application / dependency / native level.
+ * v2.0.9 — ULTRA MINIMAL
+ * Plain Activity (not ComponentActivity), no Application class,
+ * no dependencies. If this STILL crashes, issue is signing/device.
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d("PinaKomik", ">>> smoke test onCreate START")
+        Log.i("PinaKomik", "minimal onCreate START")
         super.onCreate(savedInstanceState)
-        Log.d("PinaKomik", ">>> smoke test super.onCreate DONE")
-
-        val tv = TextView(this).apply {
-            text = "✅ Hello Pina Komik!\nApp works. Compose is the problem."
-            textSize = 22f
-            setPadding(64, 128, 64, 64)
-            setTextColor(0xFFFFFFFF.toInt())
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF0B0D14.toInt())
+            setPadding(64, 200, 64, 64)
         }
-        setContentView(tv)
-        Log.d("PinaKomik", ">>> smoke test setContentView DONE")
+        layout.addView(TextView(this).apply {
+            text = "✅ Pina Komik\nAlive on Android ${android.os.Build.VERSION.SDK_INT}"
+            textSize = 22f
+            setTextColor(0xFFFFFFFF.toInt())
+        })
+        setContentView(layout)
+        Log.i("PinaKomik", "minimal onCreate DONE")
     }
 }
