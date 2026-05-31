@@ -38,8 +38,13 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Verify Capacitor install
+        run: |
+          ls -la node_modules/.bin/cap || true
+          ls -la node_modules/@capacitor/cli/bin/ || true
+
       - name: Capacitor sync Android
-        run: npx --no-install cap sync android
+        run: node node_modules/@capacitor/cli/bin/capacitor sync android --inline
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
