@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#f6f7fb" />
+  <title>BacaKomik</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #f6f7fb;
+    }
+    iframe {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      border: 0;
+      display: block;
+      background: #f6f7fb;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="https://komik.pina.my.id/app" allow="fullscreen *; clipboard-read *; clipboard-write *" allowfullscreen></iframe>
+  <script src="capacitor.js"></script>
+  <script>
+    const frame = document.getElementById('appFrame');
+
+    function sendBackToApp() {
+      frame.contentWindow.postMessage({ type: 'bacakomik-native-back' }, 'https://komik.pina.my.id');
+    }
+
+    function onNativeBack() {
+      try {
+        sendBackToApp();
+      } catch (_) {}
+    }
+
+    window.addEventListener('bacakomik-native-back', onNativeBack);
+
+    window.addEventListener('DOMContentLoaded', function () {
+      const cap = window.Capacitor;
+      if (cap && cap.Plugins && cap.Plugins.App) {
+        cap.Plugins.App.addListener('backButton', onNativeBack);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Android build outputs
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+android/captures/
+*.iml
+.gradle/
+
+# Android Studio
+.idea/
+*.hprof
+
+# APK
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+*.swp
+*.swo
