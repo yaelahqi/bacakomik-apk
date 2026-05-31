@@ -14,9 +14,20 @@ import kotlin.concurrent.thread
 
 class PinaKomikApp : Application() {
 
+    override fun attachBaseContext(base: android.content.Context?) {
+        super.attachBaseContext(base)
+        // Earliest possible — install crash logger before anything else can crash
+        try {
+            installCrashLogger()
+            recordLifecycle("attachBaseContext")
+        } catch (t: Throwable) {
+            Log.e("PinaKomik", "attachBaseContext failed", t)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
-        installCrashLogger()
+        recordLifecycle("Application.onCreate")
         // Upload any pending crash from previous session
         uploadPendingCrash()
     }
@@ -26,11 +37,18 @@ class PinaKomikApp : Application() {
         return File(dir, "crash.log")
     }
 
+    private fun recordLifecycle(stage: String) {
+        try {
+            val prefs = getSharedPreferences("pina_lifecycle", MODE_PRIVATE)
+            val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+            val existing = prefs.getString("trace", "") ?: ""
+            prefs.edit().putString("trace", "$existing\n[$ts] $stage").apply()
+        } catch (_: Throwable) {}
+    }
+
     private fun installCrashLogger() {
-        val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val file = crashFile()
                 val sw = StringWriter()
                 throwable.printStackTrace(PrintWriter(sw))
                 val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
@@ -45,28 +63,32 @@ class PinaKomikApp : Application() {
                     append("Message: ").append(throwable.message).append("\n\n")
                     append(sw.toString())
                 }
-                // Write to file FIRST (synchronous)
-                file.writeText(payload)
-                Log.e("PinaKomik", "Crash logged to file: ${file.absolutePath}", throwable)
-                // Launch CrashActivity to show crash on screen
+                // Save to SharedPreferences SYNCHRONOUSLY (commit, not apply)
+                try {
+                    val prefs = getSharedPreferences("pina_crash", MODE_PRIVATE)
+                    prefs.edit().putString("last_crash", payload).commit()
+                } catch (_: Throwable) {}
+
+                // Save to file (sync)
+                try {
+                    crashFile().writeText(payload)
+                } catch (_: Throwable) {}
+
+                Log.e("PinaKomik", "Crash logged", throwable)
+
+                // Try to launch CrashActivity (might fail if process is dying)
                 try {
                     val intent = Intent(this@PinaKomikApp, CrashActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
                     startActivity(intent)
-                } catch (e: Exception) {
-                    Log.e("PinaKomik", "Failed to launch CrashActivity", e)
-                }
-                // Also best-effort upload to server
-                thread(start = true, isDaemon = true) {
-                    runCatching { uploadString(payload) }
-                }
+                } catch (_: Throwable) {}
             } catch (t: Throwable) {
-                Log.e("PinaKomik", "Failed to handle crash", t)
+                Log.e("PinaKomik", "Crash handler itself failed", t)
             }
-            // Don't call previous handler — we want to keep the process alive
-            // so user can see the CrashActivity
-            // previous?.uncaughtException(thread, throwable)
+            // Kill the process — Android will respawn into new task
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(10)
         }
     }
 
