@@ -1,13 +1,12 @@
 package id.pina.bacakomik
 
 import android.app.Application
+import android.content.Intent
 import android.util.Log
 import id.pina.bacakomik.BuildConfig
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -15,34 +14,11 @@ import kotlin.concurrent.thread
 
 class PinaKomikApp : Application() {
 
-    private val crashEndpoint by lazy { "${BuildConfig.API_BASE}/api/v1/crashlog" }
-
     override fun onCreate() {
         super.onCreate()
         installCrashLogger()
-        beacon("app_oncreate")
-        // On startup, try to upload any pending crash log from previous session
+        // Upload any pending crash from previous session
         uploadPendingCrash()
-    }
-
-    private fun beacon(stage: String) {
-        thread(start = true, isDaemon = true, name = "beacon-$stage") {
-            runCatching {
-                val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-                val payload = "BEACON: $stage @ $ts\n" +
-                    "Version: ${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE})\n" +
-                    "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
-                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n"
-                uploadString(payload)
-            }
-        }
-    }
-
-    companion object {
-        @JvmStatic
-        fun beaconStatic(ctx: Application, stage: String) {
-            (ctx as? PinaKomikApp)?.beacon(stage)
-        }
     }
 
     private fun crashFile(): File {
@@ -69,14 +45,28 @@ class PinaKomikApp : Application() {
                     append("Message: ").append(throwable.message).append("\n\n")
                     append(sw.toString())
                 }
-                file.appendText(payload + "\n\n")
-                Log.e("PinaKomik", "Crash logged: ${file.absolutePath}", throwable)
-                // Best-effort sync upload (we have ~3s before process dies)
-                runCatching { uploadString(payload) }
+                // Write to file FIRST (synchronous)
+                file.writeText(payload)
+                Log.e("PinaKomik", "Crash logged to file: ${file.absolutePath}", throwable)
+                // Launch CrashActivity to show crash on screen
+                try {
+                    val intent = Intent(this@PinaKomikApp, CrashActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("PinaKomik", "Failed to launch CrashActivity", e)
+                }
+                // Also best-effort upload to server
+                thread(start = true, isDaemon = true) {
+                    runCatching { uploadString(payload) }
+                }
             } catch (t: Throwable) {
-                Log.e("PinaKomik", "Failed to write crash log", t)
+                Log.e("PinaKomik", "Failed to handle crash", t)
             }
-            previous?.uncaughtException(thread, throwable)
+            // Don't call previous handler — we want to keep the process alive
+            // so user can see the CrashActivity
+            // previous?.uncaughtException(thread, throwable)
         }
     }
 
@@ -95,8 +85,8 @@ class PinaKomikApp : Application() {
 
     private fun uploadString(payload: String): Boolean {
         return runCatching {
-            val url = URL(crashEndpoint)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
+            val url = java.net.URL("${BuildConfig.API_BASE}/api/v1/crashlog")
+            val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
                 connectTimeout = 5_000
