@@ -13,8 +13,8 @@ android {
         applicationId = "id.pina.bacakomik"
         minSdk = 24
         targetSdk = 34
-        versionCode = 16
-        versionName = "2.0.6"
+        versionCode = 17
+        versionName = "2.0.7"
 
         buildConfigField("String", "API_BASE", "\"https://komik.pina.my.id\"")
     }
