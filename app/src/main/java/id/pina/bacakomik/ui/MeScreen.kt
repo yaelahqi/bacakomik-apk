@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.pina.bacakomik.PinaGray
@@ -26,14 +27,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+sealed class ImportPhase {
+    object Idle : ImportPhase()
+    object Running : ImportPhase()
+    data class Done(val favsTotal: Int, val histTotal: Int, val matched: Int) : ImportPhase()
+    data class Error(val message: String) : ImportPhase()
+}
+
 @Composable
 fun MeScreen() {
     val ctx = LocalContext.current
     val store = remember { LocalStore(ctx) }
     val scope = rememberCoroutineScope()
     var favCount by remember { mutableStateOf(store.listFavorites().size) }
-
-    // Import state
     var importState by remember { mutableStateOf<ImportPhase>(ImportPhase.Idle) }
     var importProgress by remember { mutableStateOf<ImportProgress?>(null) }
 
@@ -62,14 +68,13 @@ fun MeScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        Text("👤", fontSize = 48.sp)
+        Text("\uD83D\uDC64", fontSize = 48.sp)
         Spacer(Modifier.height(8.dp))
         Text("Pina Komik", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(Modifier.height(2.dp))
-        Text("v2.1.5", fontSize = 13.sp, color = PinaGray)
+        Text("v2.2.0", fontSize = 13.sp, color = PinaGray)
         Spacer(Modifier.height(24.dp))
 
-        // Stats
         Card(
             colors = CardDefaults.cardColors(containerColor = PinaNavyCard),
             modifier = Modifier.fillMaxWidth()
@@ -78,16 +83,19 @@ fun MeScreen() {
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem("Favorit", favCount)
-                StatItem("Tipe", "Manhwa
-Manga
-Manhua")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$favCount", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Favorit", color = PinaGray, fontSize = 11.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("3", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Tipe", color = PinaGray, fontSize = 11.sp)
+                }
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
-        // Import section
         when (val st = importState) {
             is ImportPhase.Idle -> {
                 Card(
@@ -98,12 +106,12 @@ Manhua")
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("📦 Import dari BacaKomik.my", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Import dari BacaKomik.my", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(4.dp))
                         Text("Pilih file backup .db dari BacaKomik.my", color = PinaGray, fontSize = 11.sp)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "File → backup.db → Pilih",
+                            "File > Backup > backup.db > Pilih",
                             color = PinaGray,
                             fontSize = 10.sp,
                             textAlign = TextAlign.Center,
@@ -117,7 +125,7 @@ Manhua")
                             colors = ButtonDefaults.buttonColors(containerColor = PinaRed),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("📂 Pilih backup.db", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Pilih backup.db", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -133,7 +141,7 @@ Manhua")
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("⏳ Importing...", color = PinaRed, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Importing...", color = PinaRed, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         if (p != null) {
                             val pct = if (p.total > 0) p.current.toFloat() / p.total else 0f
@@ -144,15 +152,13 @@ Manhua")
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(Modifier.height(6.dp))
-                            Text(
-                                "Matched \${p.matched} / \${p.total}".replace("\\$", "$"),
-                                color = PinaGray, fontSize = 11.sp
-                            )
+                            val progressText = "Matched ${p.matched} / ${p.total}"
+                            Text(progressText, color = PinaGray, fontSize = 11.sp)
                             if (p.lastTitle.isNotBlank()) {
                                 Text(
                                     p.lastTitle,
                                     color = PinaGray, fontSize = 10.sp,
-                                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
@@ -172,10 +178,12 @@ Manhua")
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("✅ Import selesai!", color = Color(0xFF43AA8B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Import selesai!", color = Color(0xFF43AA8B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        Text("Favorit: \${st.favsTotal} total, matched dari API".replace("\\$", "$"), color = Color.White, fontSize = 12.sp)
-                        Text("History: \${st.histTotal} total, \${st.matched} matched".replace("\\$", "$"), color = PinaGray, fontSize = 11.sp)
+                        val favText = "Favorit: ${st.favsTotal} total"
+                        Text(favText, color = Color.White, fontSize = 12.sp)
+                        val histText = "History: ${st.histTotal} total, ${st.matched} matched"
+                        Text(histText, color = PinaGray, fontSize = 11.sp)
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = { importState = ImportPhase.Idle },
@@ -197,7 +205,7 @@ Manhua")
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("❌ Import gagal", color = PinaRed, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Import gagal", color = PinaRed, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(st.message, color = PinaGray, fontSize = 11.sp)
                         Spacer(Modifier.height(12.dp))
@@ -214,23 +222,7 @@ Manhua")
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("Import file .db dari:
-File → Backup → backup.db
-(pilih file, bukan folder)", color = PinaGray, fontSize = 10.sp, textAlign = TextAlign.Center)
+        val helpText = "Cara import: Buka BacaKomik.my > Profil > Backup > pilih file backup.db"
+        Text(helpText, color = PinaGray, fontSize = 10.sp, textAlign = TextAlign.Center)
     }
-}
-
-@Composable
-fun StatItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text(label, color = PinaGray, fontSize = 11.sp)
-    }
-}
-
-sealed class ImportPhase {
-    object Idle : ImportPhase()
-    object Running : ImportPhase()
-    data class Done(val favsTotal: Int, val histTotal: Int, val matched: Int) : ImportPhase()
-    data class Error(val message: String) : ImportPhase()
 }

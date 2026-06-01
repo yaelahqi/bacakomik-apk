@@ -10,7 +10,7 @@ import java.io.FileOutputStream
 data class BackupEntry(val title: String, val type: String, val chapter: String?)
 
 data class ImportProgress(
-    val phase: String,         // "reading" / "matching" / "done"
+    val phase: String,
     val current: Int,
     val total: Int,
     val matched: Int,
@@ -18,10 +18,10 @@ data class ImportProgress(
 )
 
 object ImportService {
-    /** Copy SAF URI into cache so SQLiteDatabase can open by path */
     fun copyUriToCache(ctx: Context, uri: Uri): File {
         val cr: ContentResolver = ctx.contentResolver
-        val out = File(ctx.cacheDir, "import_backup_\${System.currentTimeMillis()}.db".replace("\\$", "$"))
+        val fileName = "import_backup_${System.currentTimeMillis()}.db"
+        val out = File(ctx.cacheDir, fileName)
         cr.openInputStream(uri)?.use { input ->
             FileOutputStream(out).use { output ->
                 input.copyTo(output)
@@ -30,14 +30,11 @@ object ImportService {
         return out
     }
 
-    /** Read favorit + history from backup .db */
     fun readBackup(file: File): Pair<List<BackupEntry>, List<BackupEntry>> {
         val db = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
         val favs = mutableListOf<BackupEntry>()
         val hist = mutableListOf<BackupEntry>()
-
         try {
-            // favorit
             db.rawQuery("SELECT title, type FROM favorit", null).use { c ->
                 while (c.moveToNext()) {
                     val t = c.getString(0) ?: continue
@@ -45,7 +42,6 @@ object ImportService {
                     if (t.isNotBlank()) favs.add(BackupEntry(t, tp, null))
                 }
             }
-            // history
             try {
                 db.rawQuery("SELECT title, type, chapter FROM history", null).use { c ->
                     while (c.moveToNext()) {
@@ -62,20 +58,15 @@ object ImportService {
         return favs to hist
     }
 
-    /** Extract 3 keywords (drop stopwords) for fuzzy match */
     private fun keywords(title: String): String {
-        val stop = setOf("the","a","an","of","and","with","to","in","on","is","my","i","ii","iii","of","s","'s")
+        val stop = setOf("the","a","an","of","and","with","to","in","on","is","my","i","ii","iii","s")
         val words = title.lowercase()
             .replace(Regex("[^a-z0-9 ]"), " ")
-            .split(Regex("\s+"))
+            .split(Regex("\\s+"))
             .filter { it.isNotBlank() && it !in stop && it.length > 1 }
         return words.take(3).joinToString(" ")
     }
 
-    /**
-     * Match all favorites + history via API and save matched ones to LocalStore.
-     * Calls onProgress for UI updates.
-     */
     fun runImport(
         ctx: Context,
         uri: Uri,
@@ -89,10 +80,8 @@ object ImportService {
             var processed = 0
             var matchedFav = 0
             var matchedHist = 0
-
             onProgress(ImportProgress("reading", 0, total, 0, ""))
 
-            // Match favorites
             for (entry in favs) {
                 val q = keywords(entry.title).ifBlank { entry.title }
                 try {
@@ -109,23 +98,20 @@ object ImportService {
                         ))
                         matchedFav++
                     }
-                } catch (_: Exception) {
-                    // skip on network error per item
-                }
+                } catch (_: Exception) {}
                 processed++
                 onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
             }
 
-            // Match history → save as lastRead
             for (entry in hist) {
                 val q = keywords(entry.title).ifBlank { entry.title }
                 try {
                     val results = ApiService.search(q)
                     val match = results.firstOrNull()
                     if (match != null && entry.chapter != null) {
-                        // Build chapter slug guess: <slug>-chapter-<num>
-                        val chSlug = "\${match.slug}-chapter-\${entry.chapter}".replace("\\$", "$")
-                        store.setLastRead(match.slug, chSlug, "Chapter \${entry.chapter}".replace("\\$", "$"))
+                        val chSlug = match.slug + "-chapter-" + entry.chapter
+                        val chLabel = "Chapter " + entry.chapter
+                        store.setLastRead(match.slug, chSlug, chLabel)
                         matchedHist++
                     }
                 } catch (_: Exception) {}
