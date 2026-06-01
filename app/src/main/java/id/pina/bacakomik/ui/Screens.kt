@@ -466,39 +466,58 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
 
         Spacer(Modifier.height(8.dp))
 
-        Text(
-            "Genre",
-            color = PinaGray,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
-        )
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+        // Filter button row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            lazyRowItems(GENRE_LIST) { genre ->
-                val active = browseMode && genre == selectedGenre
+            if (hasActiveFilter) {
+                val parts = mutableListOf<String>()
+                if (filterState.status != "All") parts.add(filterState.status)
+                if (filterState.type != "All") parts.add(filterState.type)
+                if (filterState.genre != "Semua") parts.add(filterState.genre)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (active) PinaRed else PinaNavyCard)
-                        .clickable { loadGenre(genre) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .background(PinaRed.copy(alpha = 0.2f))
+                        .clickable { showFilter = true }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        genre,
-                        color = Color.White,
+                        "\uD83C\uDFA2 ${parts.joinToString(" \u00B7 ")}",
+                        color = PinaRed,
                         fontSize = 12.sp,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (hasActiveFilter) PinaRed else PinaNavyCard)
+                    .clickable { showFilter = true }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    "\uD83C\uDFA2 Saring",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
-        Spacer(Modifier.height(8.dp))
+        if (showFilter) {
+            FilterBottomSheet(
+                initial = filterState,
+                onApply = { applyFilter(it) },
+                onDismiss = { showFilter = false }
+            )
+        }
+
 
         when {
             isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
