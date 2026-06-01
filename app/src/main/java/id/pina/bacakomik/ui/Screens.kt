@@ -1,6 +1,7 @@
 package id.pina.bacakomik.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,13 +31,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onMangaClick: (String) -> Unit) {
     var mangaList by remember { mutableStateOf<List<Manga>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    fun load() {
+        error = null
+        isLoading = true
         scope.launch {
             try {
                 mangaList = withContext(Dispatchers.IO) { ApiService.fetchList() }
@@ -48,15 +51,13 @@ fun HomeScreen() {
         }
     }
 
+    LaunchedEffect(Unit) { load() }
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PinaNavy)
-            .padding(top = 16.dp)
+        modifier = Modifier.fillMaxSize().background(PinaNavy).padding(top = 16.dp)
     ) {
-        // Header
         Text(
-            text = "🏠 Home",
+            "🏠 Home",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -64,44 +65,26 @@ fun HomeScreen() {
         )
 
         when {
-            isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PinaRed)
-                }
+            isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PinaRed)
             }
-            error != null -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("❌ Error", fontSize = 18.sp, color = PinaRed)
-                        Spacer(Modifier.height(8.dp))
-                        Text(error ?: "", fontSize = 14.sp, color = PinaGray)
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = {
-                            error = null
-                            isLoading = true
-                            scope.launch {
-                                try {
-                                    mangaList = withContext(Dispatchers.IO) { ApiService.fetchList() }
-                                    isLoading = false
-                                } catch (e: Exception) {
-                                    error = e.message
-                                    isLoading = false
-                                }
-                            }
-                        }, colors = ButtonDefaults.buttonColors(containerColor = PinaRed)) {
-                            Text("Retry")
-                        }
+            error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("❌ Error", fontSize = 18.sp, color = PinaRed)
+                    Spacer(Modifier.height(8.dp))
+                    Text(error ?: "", fontSize = 14.sp, color = PinaGray)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(containerColor = PinaRed)) {
+                        Text("Retry")
                     }
                 }
             }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(mangaList) { manga ->
-                        MangaCard(manga)
-                    }
+            else -> LazyColumn(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(mangaList) { manga ->
+                    MangaCard(manga, onClick = { onMangaClick(manga.slug) })
                 }
             }
         }
@@ -109,7 +92,7 @@ fun HomeScreen() {
 }
 
 @Composable
-fun ExploreScreen() {
+fun ExploreScreen(onMangaClick: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Manga>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -117,21 +100,16 @@ fun ExploreScreen() {
     val scope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PinaNavy)
-            .padding(top = 16.dp)
+        modifier = Modifier.fillMaxSize().background(PinaNavy).padding(top = 16.dp)
     ) {
-        // Header
         Text(
-            text = "🔍 Explore",
+            "🔍 Explore",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        // Search bar
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -165,37 +143,27 @@ fun ExploreScreen() {
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         )
 
         Spacer(Modifier.height(12.dp))
 
         when {
-            isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PinaRed)
-                }
+            isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PinaRed)
             }
-            hasSearched && results.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No results found", color = PinaGray, fontSize = 16.sp)
-                }
+            hasSearched && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No results found", color = PinaGray, fontSize = 16.sp)
             }
-            !hasSearched -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Type a manga name to search", color = PinaGray, fontSize = 14.sp)
-                }
+            !hasSearched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Type a manga name to search", color = PinaGray, fontSize = 14.sp)
             }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(results) { manga ->
-                        MangaCard(manga)
-                    }
+            else -> LazyColumn(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(results) { manga ->
+                    MangaCard(manga, onClick = { onMangaClick(manga.slug) })
                 }
             }
         }
@@ -203,7 +171,7 @@ fun ExploreScreen() {
 }
 
 @Composable
-fun MangaCard(manga: Manga) {
+fun MangaCard(manga: Manga, onClick: () -> Unit) {
     val typeColor = when (manga.type) {
         "Manhwa" -> Color(0xFFE63946)
         "Manga" -> Color(0xFF4EA8DE)
@@ -214,13 +182,12 @@ fun MangaCard(manga: Manga) {
     Card(
         colors = CardDefaults.cardColors(containerColor = PinaNavyCard),
         shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
             modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Cover image
             AsyncImage(
                 model = manga.cover,
                 contentDescription = manga.title,
@@ -233,10 +200,9 @@ fun MangaCard(manga: Manga) {
 
             Spacer(Modifier.width(12.dp))
 
-            // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = manga.title,
+                    manga.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
@@ -246,10 +212,9 @@ fun MangaCard(manga: Manga) {
 
                 Spacer(Modifier.height(4.dp))
 
-                // Type chip + Theme
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = manga.type,
+                        manga.type,
                         fontSize = 10.sp,
                         color = typeColor,
                         fontWeight = FontWeight.Bold,
@@ -258,26 +223,17 @@ fun MangaCard(manga: Manga) {
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = manga.theme,
-                        fontSize = 10.sp,
-                        color = PinaGray
-                    )
+                    Text(manga.theme, fontSize = 10.sp, color = PinaGray)
                 }
 
                 Spacer(Modifier.height(4.dp))
 
-                // Chapter + UpCount
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = manga.latestChapterTitle,
-                        fontSize = 11.sp,
-                        color = PinaGray
-                    )
+                    Text(manga.latestChapterTitle, fontSize = 11.sp, color = PinaGray)
                     if (!manga.upCount.isNullOrEmpty()) {
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "🆕 ${manga.upCount}",
+                            "🆕 ${manga.upCount}",
                             fontSize = 10.sp,
                             color = PinaRed,
                             fontWeight = FontWeight.Bold

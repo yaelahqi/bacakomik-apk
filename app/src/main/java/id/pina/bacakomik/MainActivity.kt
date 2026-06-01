@@ -19,12 +19,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import id.pina.bacakomik.ui.HomeScreen
+import androidx.navigation.navArgument
+import id.pina.bacakomik.ui.DetailScreen
 import id.pina.bacakomik.ui.ExploreScreen
+import id.pina.bacakomik.ui.HomeScreen
+import id.pina.bacakomik.ui.ReaderScreen
 
 // Colors
 val PinaNavy = Color(0xFF0B0D14)
@@ -38,9 +42,7 @@ data class BottomNavItem(val route: String, val label: String, val icon: ImageVe
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            PinaKomikApp()
-        }
+        setContent { PinaKomikApp() }
     }
 }
 
@@ -48,12 +50,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PinaKomikApp() {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     val items = listOf(
         BottomNavItem("home", "Home", Icons.Filled.Home),
         BottomNavItem("explore", "Explore", Icons.Filled.Explore),
         BottomNavItem("favorit", "Favorit", Icons.Filled.Bookmark),
         BottomNavItem("me", "Me", Icons.Filled.Person),
     )
+
+    // Hide bottom bar on detail/reader screens
+    val showBottomBar = currentRoute in listOf("home", "explore", "favorit", "me")
 
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -68,31 +76,31 @@ fun PinaKomikApp() {
         Scaffold(
             containerColor = PinaNavy,
             bottomBar = {
-                NavigationBar(containerColor = PinaNavyLight) {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val currentRoute = navBackStackEntry?.destination?.route
-                    items.forEach { item ->
-                        NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        popUpTo("home") { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                if (showBottomBar) {
+                    NavigationBar(containerColor = PinaNavyLight) {
+                        items.forEach { item ->
+                            NavigationBarItem(
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) },
+                                selected = currentRoute == item.route,
+                                onClick = {
+                                    if (currentRoute != item.route) {
+                                        navController.navigate(item.route) {
+                                            popUpTo("home") { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color.White,
-                                unselectedIconColor = PinaGray,
-                                selectedTextColor = Color.White,
-                                unselectedTextColor = PinaGray,
-                                indicatorColor = PinaRed,
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.White,
+                                    unselectedIconColor = PinaGray,
+                                    selectedTextColor = Color.White,
+                                    unselectedTextColor = PinaGray,
+                                    indicatorColor = PinaRed,
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -102,13 +110,42 @@ fun PinaKomikApp() {
                 startDestination = "home",
                 Modifier.padding(padding)
             ) {
-                composable("home") { HomeScreen() }
-                composable("explore") { ExploreScreen() }
-                composable("favorit") {
-                    PlaceholderTab("📚", "Favorit")
+                composable("home") {
+                    HomeScreen(onMangaClick = { slug ->
+                        navController.navigate("detail/$slug")
+                    })
                 }
-                composable("me") {
-                    PlaceholderTab("👤", "Me")
+                composable("explore") {
+                    ExploreScreen(onMangaClick = { slug ->
+                        navController.navigate("detail/$slug")
+                    })
+                }
+                composable("favorit") { PlaceholderTab("📚", "Favorit") }
+                composable("me") { PlaceholderTab("👤", "Me") }
+
+                composable(
+                    "detail/{slug}",
+                    arguments = listOf(navArgument("slug") { type = NavType.StringType })
+                ) { backStack ->
+                    val slug = backStack.arguments?.getString("slug") ?: ""
+                    DetailScreen(
+                        slug = slug,
+                        onBack = { navController.popBackStack() },
+                        onChapterClick = { chSlug ->
+                            navController.navigate("reader/$chSlug")
+                        }
+                    )
+                }
+
+                composable(
+                    "reader/{chapterSlug}",
+                    arguments = listOf(navArgument("chapterSlug") { type = NavType.StringType })
+                ) { backStack ->
+                    val chSlug = backStack.arguments?.getString("chapterSlug") ?: ""
+                    ReaderScreen(
+                        chapterSlug = chSlug,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }
@@ -118,26 +155,15 @@ fun PinaKomikApp() {
 @Composable
 fun PlaceholderTab(emoji: String, label: String) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PinaNavy),
+        modifier = Modifier.fillMaxSize().background(PinaNavy),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = emoji, fontSize = 48.sp)
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = label,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(6.dp))
-            Text(
-                text = "Coming soon...",
-                fontSize = 14.sp,
-                color = PinaGray
-            )
+            Text("Coming soon...", fontSize = 14.sp, color = PinaGray)
         }
     }
 }
