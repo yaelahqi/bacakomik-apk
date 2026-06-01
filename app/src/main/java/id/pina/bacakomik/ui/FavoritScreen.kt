@@ -189,13 +189,21 @@ private fun SortChipsRow(selected: SortMode, onSelect: (SortMode) -> Unit) {
 
 @Composable
 private fun HistoryCard(item: HistoryItem, store: LocalStore, onClick: () -> Unit) {
-    // We don't have title/cover in HistoryItem, so we store it during import/save.
-    // For now, use slug as title display. Ideally we'd enrich via API, but keep it local.
     val dateStr = remember(item.ts) {
         if (item.ts > 0) {
             val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
             sdf.format(Date(item.ts))
         } else ""
+    }
+    val displayTitle = item.title.ifBlank {
+        item.slug.replace("-", " ").split(" ")
+            .joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }
+    }
+    val typeColor = when (item.type) {
+        "Manhwa" -> Color(0xFFE63946)
+        "Manga" -> Color(0xFF4EA8DE)
+        "Manhua" -> Color(0xFF43AA8B)
+        else -> PinaGray
     }
 
     Card(
@@ -205,12 +213,33 @@ private fun HistoryCard(item: HistoryItem, store: LocalStore, onClick: () -> Uni
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier.padding(10.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Cover thumbnail
+            Box(
+                modifier = Modifier
+                    .size(width = 60.dp, height = 80.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(PinaNavy)
+            ) {
+                if (item.cover.isNotBlank()) {
+                    AsyncImage(
+                        model = item.cover,
+                        contentDescription = displayTitle,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("📖", fontSize = 24.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    item.slug.replace("-", " ").replaceFirstChar { it.uppercase() },
+                    displayTitle,
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -218,6 +247,18 @@ private fun HistoryCard(item: HistoryItem, store: LocalStore, onClick: () -> Uni
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(4.dp))
+                if (item.type.isNotBlank()) {
+                    Text(
+                        item.type,
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .background(typeColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
                 Text(
                     item.chapterLabel,
                     color = PinaRed,
@@ -232,7 +273,7 @@ private fun HistoryCard(item: HistoryItem, store: LocalStore, onClick: () -> Uni
                     )
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
             Text("›", color = PinaGray, fontSize = 24.sp, fontWeight = FontWeight.Light)
         }
     }

@@ -39,10 +39,13 @@ object ApiService {
         }
     }
 
-    fun fetchList(page: Int = 1, type: String? = null): List<Manga> {
+    fun fetchList(page: Int = 1, type: String? = null, genre: String? = null): List<Manga> {
         val params = mutableListOf("page=$page")
         if (!type.isNullOrBlank() && type != "All") {
             params.add("type=${URLEncoder.encode(type, "UTF-8")}")
+        }
+        if (!genre.isNullOrBlank() && genre != "Semua") {
+            params.add("genre=${URLEncoder.encode(genre.lowercase(), "UTF-8")}")
         }
         return parseItems(get("/list?" + params.joinToString("&")))
     }

@@ -12,8 +12,8 @@ android {
         applicationId = "id.pina.bacakomik"
         minSdk = 24
         targetSdk = 33
-        versionCode = 29
-        versionName = "2.3.2"
+        versionCode = 30
+        versionName = "2.4.0"
     }
 
     signingConfigs {

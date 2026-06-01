@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val FILTER_TYPES = listOf("All", "Manhwa", "Manga", "Manhua")
+private val GENRE_LIST = listOf("Semua", "Action", "Romance", "Fantasy", "Drama", "Comedy", "School", "Adventure", "Horror", "Sci-Fi", "Sports", "Isekai", "Slice of Life", "Mystery")
 
 @Composable
 fun HomeScreen(onMangaClick: (String) -> Unit) {
@@ -181,9 +182,91 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Manga>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var isLoadingMore by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+    var selectedGenre by remember { mutableStateOf("Semua") }
+    var currentPage by remember { mutableStateOf(1) }
+    var hasMore by remember { mutableStateOf(true) }
+    var browseMode by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
+
+    fun runSearch() {
+        if (query.isBlank()) return
+        isLoading = true
+        hasSearched = true
+        browseMode = false
+        scope.launch {
+            try {
+                results = withContext(Dispatchers.IO) { ApiService.search(query.trim()) }
+                isLoading = false
+            } catch (e: Exception) {
+                results = emptyList()
+                isLoading = false
+            }
+        }
+    }
+
+    fun loadGenre(genre: String) {
+        selectedGenre = genre
+        browseMode = true
+        hasSearched = true
+        isLoading = true
+        currentPage = 1
+        hasMore = true
+        scope.launch {
+            try {
+                val items = withContext(Dispatchers.IO) {
+                    ApiService.fetchList(page = 1, genre = if (genre == "Semua") null else genre)
+                }
+                results = items
+                hasMore = items.isNotEmpty()
+                isLoading = false
+            } catch (e: Exception) {
+                results = emptyList()
+                isLoading = false
+            }
+        }
+    }
+
+    fun loadMore() {
+        if (isLoadingMore || !hasMore || isLoading || !browseMode) return
+        isLoadingMore = true
+        scope.launch {
+            try {
+                val nextPage = currentPage + 1
+                val items = withContext(Dispatchers.IO) {
+                    ApiService.fetchList(
+                        page = nextPage,
+                        genre = if (selectedGenre == "Semua") null else selectedGenre
+                    )
+                }
+                if (items.isEmpty()) {
+                    hasMore = false
+                } else {
+                    val existing = results.map { it.slug }.toSet()
+                    val newItems = items.filter { it.slug !in existing }
+                    results = results + newItems
+                    currentPage = nextPage
+                    if (newItems.isEmpty()) hasMore = false
+                }
+                isLoadingMore = false
+            } catch (e: Exception) {
+                isLoadingMore = false
+            }
+        }
+    }
+
+    LaunchedEffect(gridState, results.size, hasMore, isLoadingMore, browseMode) {
+        snapshotFlow {
+            val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisible to results.size
+        }.collect { (lastVisible, total) ->
+            if (browseMode && total > 0 && lastVisible >= total - 6 && hasMore && !isLoadingMore) {
+                loadMore()
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(PinaNavy)) {
         Text(
@@ -197,26 +280,12 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text("Search manga...", color = PinaGray) },
+            placeholder = { Text("Search by name...", color = PinaGray) },
             singleLine = true,
             trailingIcon = {
-                IconButton(onClick = {
-                    if (query.isNotBlank()) {
-                        isLoading = true
-                        hasSearched = true
-                        scope.launch {
-                            try {
-                                results = withContext(Dispatchers.IO) {
-                                    ApiService.search(query.trim())
-                                }
-                                isLoading = false
-                            } catch (e: Exception) {
-                                results = emptyList()
-                                isLoading = false
-                            }
-                        }
-                    }
-                }) { Icon(Icons.Filled.Search, "Search", tint = PinaRed) }
+                IconButton(onClick = { runSearch() }) {
+                    Icon(Icons.Filled.Search, "Search", tint = PinaRed)
+                }
             },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = PinaRed,
@@ -228,19 +297,62 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "Genre",
+            color = PinaGray,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+        )
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            lazyRowItems(GENRE_LIST) { genre ->
+                val active = browseMode && genre == selectedGenre
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (active) PinaRed else PinaNavyCard)
+                        .clickable { loadGenre(genre) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        genre,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         when {
             isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = PinaRed)
             }
             hasSearched && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No results found", color = PinaGray, fontSize = 16.sp)
+                Text("Tidak ada hasil", color = PinaGray, fontSize = 16.sp)
             }
             !hasSearched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Type a manga name to search", color = PinaGray, fontSize = 14.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Cari berdasarkan nama", color = PinaGray, fontSize = 14.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("atau pilih genre di atas", color = PinaGray, fontSize = 12.sp)
+                }
             }
-            else -> MangaGrid(items = results, gridState = gridState, isLoadingMore = false, onMangaClick = onMangaClick)
+            else -> MangaGrid(
+                items = results,
+                gridState = gridState,
+                isLoadingMore = isLoadingMore,
+                onMangaClick = onMangaClick
+            )
         }
     }
 }

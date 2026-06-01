@@ -86,10 +86,29 @@ class LocalStore(ctx: Context) {
     // ---------- Last read ----------
 
     fun setLastRead(mangaSlug: String, chapterSlug: String, chapterLabel: String) {
+        setLastRead(mangaSlug, chapterSlug, chapterLabel, "", "", "")
+    }
+
+    fun setLastRead(
+        mangaSlug: String,
+        chapterSlug: String,
+        chapterLabel: String,
+        title: String,
+        cover: String,
+        type: String
+    ) {
         val obj = JSONObject(prefs.getString(KEY_LASTREAD, "{}") ?: "{}")
+        // Merge with existing entry to preserve metadata if new call doesn't have it
+        val existing = if (obj.has(mangaSlug)) obj.getJSONObject(mangaSlug) else JSONObject()
+        val finalTitle = if (title.isNotBlank()) title else existing.optString("title", "")
+        val finalCover = if (cover.isNotBlank()) cover else existing.optString("cover", "")
+        val finalType = if (type.isNotBlank()) type else existing.optString("type", "")
         obj.put(mangaSlug, JSONObject().apply {
             put("chapterSlug", chapterSlug)
             put("chapterLabel", chapterLabel)
+            put("title", finalTitle)
+            put("cover", finalCover)
+            put("type", finalType)
             put("ts", System.currentTimeMillis())
         })
         prefs.edit().putString(KEY_LASTREAD, obj.toString()).apply()
@@ -104,13 +123,23 @@ class LocalStore(ctx: Context) {
         val obj = JSONObject(prefs.getString(KEY_LASTREAD, "{}") ?: "{}")
         val keys = obj.keys()
         val list = mutableListOf<HistoryItem>()
+        // Build a slug->FavoriteItem map for fallback enrichment
+        val favsBySlug = listFavorites().associateBy { it.slug }
         while (keys.hasNext()) {
             val slug = keys.next()
             val o = obj.getJSONObject(slug)
+            val storedTitle = o.optString("title", "")
+            val storedCover = o.optString("cover", "")
+            val storedType = o.optString("type", "")
+            // Fallback to favorites if metadata not yet stored
+            val fav = favsBySlug[slug]
             list.add(HistoryItem(
                     slug = slug,
                     chapterSlug = o.getString("chapterSlug"),
                     chapterLabel = o.optString("chapterLabel", ""),
+                    title = storedTitle.ifBlank { fav?.title ?: "" },
+                    cover = storedCover.ifBlank { fav?.cover ?: "" },
+                    type = storedType.ifBlank { fav?.type ?: "" },
                     ts = o.optLong("ts", 0L)
             ))
         }
@@ -137,5 +166,8 @@ data class HistoryItem(
     val slug: String,
     val chapterSlug: String,
     val chapterLabel: String,
+    val title: String,
+    val cover: String,
+    val type: String,
     val ts: Long
 )

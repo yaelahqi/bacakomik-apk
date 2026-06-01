@@ -49,9 +49,16 @@ fun ReaderScreen(
                 val c = withContext(Dispatchers.IO) { ApiService.fetchChapter(chapterSlug) }
                 chapter = c
                 isLoading = false
-                // Save last read for resume feature
+                // Save last read for resume feature, with metadata if available from manga detail
                 if (c.mangaSlug.isNotBlank()) {
-                    store.setLastRead(c.mangaSlug, chapterSlug, chapterLabel)
+                    val detail = try {
+                        withContext(Dispatchers.IO) { ApiService.fetchManga(c.mangaSlug) }
+                    } catch (_: Exception) { null }
+                    if (detail != null) {
+                        store.setLastRead(c.mangaSlug, chapterSlug, chapterLabel, detail.title, detail.cover, detail.type)
+                    } else {
+                        store.setLastRead(c.mangaSlug, chapterSlug, chapterLabel)
+                    }
                 }
             } catch (e: Exception) {
                 error = e.message
