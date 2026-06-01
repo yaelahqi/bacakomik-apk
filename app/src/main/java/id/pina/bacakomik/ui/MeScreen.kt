@@ -72,7 +72,7 @@ fun MeScreen() {
         Spacer(Modifier.height(8.dp))
         Text("Pina Komik", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(Modifier.height(2.dp))
-        Text("v2.3.1", fontSize = 13.sp, color = PinaGray)
+        Text("v2.3.2", fontSize = 13.sp, color = PinaGray)
         Spacer(Modifier.height(24.dp))
 
         Card(

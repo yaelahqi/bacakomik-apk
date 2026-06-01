@@ -64,16 +64,21 @@ class LocalStore(ctx: Context) {
     }
 
     fun listFavorites(): List<FavoriteItem> {
+        return listFavoritesWithTimestamp().map { it.second }
+    }
+
+    fun listFavoritesWithTimestamp(): List<Pair<Long, FavoriteItem>> {
         val arr = JSONArray(prefs.getString(KEY_FAVORITES, "[]") ?: "[]")
-        return (0 until arr.length()).map { i ->
+        return (0 until arr.length()).mapNotNull { i ->
             val o = arr.getJSONObject(i)
-            FavoriteItem(
-                slug = o.getString("slug"),
-                title = o.optString("title", ""),
-                cover = o.optString("cover", ""),
-                type = o.optString("type", ""),
-                theme = o.optString("theme", ""),
-                latestChapter = o.optString("latestChapter", "")
+            val ts = o.optLong("ts", 0L)
+            ts to FavoriteItem(
+                    slug = o.getString("slug"),
+                    title = o.optString("title", ""),
+                    cover = o.optString("cover", ""),
+                    type = o.optString("type", ""),
+                    theme = o.optString("theme", ""),
+                    latestChapter = o.optString("latestChapter", "")
             )
         }
     }
@@ -91,14 +96,25 @@ class LocalStore(ctx: Context) {
     }
 
     fun getLastRead(mangaSlug: String): LastRead? {
+        val item = listAllLastRead().find { it.slug == mangaSlug } ?: return null
+        return LastRead(chapterSlug = item.chapterSlug, chapterLabel = item.chapterLabel, ts = item.ts)
+    }
+
+    fun listAllLastRead(): List<HistoryItem> {
         val obj = JSONObject(prefs.getString(KEY_LASTREAD, "{}") ?: "{}")
-        if (!obj.has(mangaSlug)) return null
-        val o = obj.getJSONObject(mangaSlug)
-        return LastRead(
-            chapterSlug = o.getString("chapterSlug"),
-            chapterLabel = o.optString("chapterLabel", ""),
-            ts = o.optLong("ts", 0L)
-        )
+        val keys = obj.keys()
+        val list = mutableListOf<HistoryItem>()
+        while (keys.hasNext()) {
+            val slug = keys.next()
+            val o = obj.getJSONObject(slug)
+            list.add(HistoryItem(
+                    slug = slug,
+                    chapterSlug = o.getString("chapterSlug"),
+                    chapterLabel = o.optString("chapterLabel", ""),
+                    ts = o.optLong("ts", 0L)
+            ))
+        }
+        return list.sortedByDescending { it.ts }
     }
 }
 
@@ -112,6 +128,13 @@ data class FavoriteItem(
 )
 
 data class LastRead(
+    val chapterSlug: String,
+    val chapterLabel: String,
+    val ts: Long
+)
+
+data class HistoryItem(
+    val slug: String,
     val chapterSlug: String,
     val chapterLabel: String,
     val ts: Long
