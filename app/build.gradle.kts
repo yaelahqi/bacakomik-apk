@@ -12,8 +12,8 @@ android {
         applicationId = "id.pina.bacakomik"
         minSdk = 24
         targetSdk = 33
-        versionCode = 21
-        versionName = "2.1.1"
+        versionCode = 22
+        versionName = "2.1.2"
     }
 
     signingConfigs {
@@ -51,4 +51,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
 }
