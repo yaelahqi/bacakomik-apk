@@ -63,12 +63,6 @@ fun FavoritScreen(onMangaClick: (String) -> Unit) {
             selectedTabIndex = selectedTab.ordinal,
             containerColor = PinaNavy,
             contentColor = PinaRed,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
-                    color = PinaRed
-                )
-            }
         ) {
             FavTab.entries.forEach { tab ->
                 Tab(
