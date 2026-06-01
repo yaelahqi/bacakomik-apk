@@ -1,7 +1,6 @@
 package id.pina.bacakomik.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -267,22 +266,33 @@ fun FilterBottomSheet(
             // Genre grid
             Text("Genre", color = PinaGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ApiService.GENRES.forEach { g ->
-                    val active = g == genre
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (active) PinaRed else PinaNavyCard)
-                            .clickable { genre = g }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+            // Genre grid - 3 columns using chunked
+            val genreRows = ApiService.GENRES.chunked(3)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                genreRows.forEach { row ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(g, color = Color.White, fontSize = 12.sp,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                        row.forEach { g ->
+                            val active = g == genre
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (active) PinaRed else PinaNavyCard)
+                                    .clickable { genre = g }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(g, color = Color.White, fontSize = 11.sp,
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                            }
+                        }
+                        // Fill remaining space if row is incomplete
+                        repeat(3 - row.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
