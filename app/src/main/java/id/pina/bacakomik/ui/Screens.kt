@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -157,7 +158,7 @@ fun FilterChipsRow(types: List<String>, selected: String, onSelect: (String) -> 
         contentPadding = PaddingValues(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(types) { type ->
+        lazyRowItems(types) { type ->
             val active = type == selected
             Box(
                 modifier = Modifier
