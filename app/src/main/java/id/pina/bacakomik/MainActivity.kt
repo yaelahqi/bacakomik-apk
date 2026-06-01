@@ -28,6 +28,7 @@ import androidx.navigation.navArgument
 import id.pina.bacakomik.ui.DetailScreen
 import id.pina.bacakomik.ui.ExploreScreen
 import id.pina.bacakomik.ui.FavoritScreen
+import id.pina.bacakomik.ui.MeScreen
 import id.pina.bacakomik.ui.HomeScreen
 import id.pina.bacakomik.ui.ReaderScreen
 
@@ -118,7 +119,7 @@ fun PinaKomikApp() {
                     FavoritScreen(onMangaClick = { slug -> navController.navigate("detail/$slug") })
                 }
                 composable("me") {
-                    id.pina.bacakomik.ui.MeScreen()
+                    MeScreen()
                 }
 
                 composable(
