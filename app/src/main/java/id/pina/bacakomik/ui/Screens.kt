@@ -36,7 +36,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val FILTER_TYPES = listOf("All", "Manhwa", "Manga", "Manhua")
-private const val MAX_PAGES = 20
 
 @Composable
 fun HomeScreen(onMangaClick: (String) -> Unit) {
@@ -72,7 +71,6 @@ fun HomeScreen(onMangaClick: (String) -> Unit) {
 
     fun loadMore() {
         if (isLoadingMore || !hasMore || isLoading) return
-        if (currentPage >= MAX_PAGES) { hasMore = false; return }
         isLoadingMore = true
         scope.launch {
             try {

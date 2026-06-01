@@ -4,6 +4,11 @@ import android.content.ContentResolver
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
@@ -18,6 +23,8 @@ data class ImportProgress(
 )
 
 object ImportService {
+    private const val BATCH_SIZE = 8
+
     fun copyUriToCache(ctx: Context, uri: Uri): File {
         val cr: ContentResolver = ctx.contentResolver
         val fileName = "import_backup_${System.currentTimeMillis()}.db"
@@ -67,26 +74,34 @@ object ImportService {
         return words.take(3).joinToString(" ")
     }
 
-    fun runImport(
+    private suspend fun searchOne(entry: BackupEntry): Manga? = withContext(Dispatchers.IO) {
+        val q = keywords(entry.title).ifBlank { entry.title }
+        try {
+            ApiService.search(q).firstOrNull()
+        } catch (_: Exception) { null }
+    }
+
+    suspend fun runImport(
         ctx: Context,
         uri: Uri,
         store: LocalStore,
         onProgress: (ImportProgress) -> Unit
     ): Triple<Int, Int, Int> {
-        val cacheFile = copyUriToCache(ctx, uri)
+        val cacheFile = withContext(Dispatchers.IO) { copyUriToCache(ctx, uri) }
         try {
-            val (favs, hist) = readBackup(cacheFile)
+            val (favs, hist) = withContext(Dispatchers.IO) { readBackup(cacheFile) }
             val total = favs.size + hist.size
             var processed = 0
             var matchedFav = 0
             var matchedHist = 0
             onProgress(ImportProgress("reading", 0, total, 0, ""))
 
-            for (entry in favs) {
-                val q = keywords(entry.title).ifBlank { entry.title }
-                try {
-                    val results = ApiService.search(q)
-                    val match = results.firstOrNull()
+            // Process favorites in parallel batches
+            favs.chunked(BATCH_SIZE).forEach { batch ->
+                val results = coroutineScope {
+                    batch.map { entry -> async { entry to searchOne(entry) } }.awaitAll()
+                }
+                for ((entry, match) in results) {
                     if (match != null) {
                         store.addFavorite(FavoriteItem(
                             slug = match.slug,
@@ -98,25 +113,26 @@ object ImportService {
                         ))
                         matchedFav++
                     }
-                } catch (_: Exception) {}
-                processed++
-                onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+                    processed++
+                    onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+                }
             }
 
-            for (entry in hist) {
-                val q = keywords(entry.title).ifBlank { entry.title }
-                try {
-                    val results = ApiService.search(q)
-                    val match = results.firstOrNull()
+            // Process history in parallel batches
+            hist.chunked(BATCH_SIZE).forEach { batch ->
+                val results = coroutineScope {
+                    batch.map { entry -> async { entry to searchOne(entry) } }.awaitAll()
+                }
+                for ((entry, match) in results) {
                     if (match != null && entry.chapter != null) {
                         val chSlug = match.slug + "-chapter-" + entry.chapter
                         val chLabel = "Chapter " + entry.chapter
                         store.setLastRead(match.slug, chSlug, chLabel)
                         matchedHist++
                     }
-                } catch (_: Exception) {}
-                processed++
-                onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+                    processed++
+                    onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+                }
             }
 
             onProgress(ImportProgress("done", total, total, matchedFav + matchedHist, ""))
