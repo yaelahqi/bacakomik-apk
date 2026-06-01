@@ -39,13 +39,23 @@ object ApiService {
         }
     }
 
-    fun fetchList(page: Int = 1, type: String? = null, genre: String? = null): List<Manga> {
+    // Full genre list matching backend komiku.org
+    val GENRES = listOf(
+        "Semua", "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror",
+        "Isekai", "Martial Arts", "Mystery", "Romance", "School Life", "Sci-Fi",
+        "Shounen", "Slice of Life", "Supernatural", "Thriller", "Tragedy", "Historical"
+    )
+
+    fun fetchList(page: Int = 1, type: String? = null, genre: String? = null, status: String? = null): List<Manga> {
         val params = mutableListOf("page=$page")
         if (!type.isNullOrBlank() && type != "All") {
-            params.add("type=${URLEncoder.encode(type, "UTF-8")}")
+            params.add("type=${URLEncoder.encode(type.lowercase(), "UTF-8")}")
         }
         if (!genre.isNullOrBlank() && genre != "Semua") {
             params.add("genre=${URLEncoder.encode(genre.lowercase(), "UTF-8")}")
+        }
+        if (!status.isNullOrBlank() && status != "All") {
+            params.add("status=${URLEncoder.encode(status.lowercase(), "UTF-8")}")
         }
         return parseItems(get("/list?" + params.joinToString("&")))
     }

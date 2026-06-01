@@ -1,6 +1,7 @@
 package id.pina.bacakomik.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val FILTER_TYPES = listOf("All", "Manhwa", "Manga", "Manhua")
-private val GENRE_LIST = listOf("Semua", "Action", "Romance", "Fantasy", "Drama", "Comedy", "School", "Adventure", "Horror", "Sci-Fi", "Sports", "Isekai", "Slice of Life", "Mystery")
+// GENRE_LIST moved to ApiService.GENRES
 
 @Composable
 fun HomeScreen(onMangaClick: (String) -> Unit) {
@@ -177,8 +178,137 @@ fun FilterChipsRow(types: List<String>, selected: String, onSelect: (String) -> 
     }
 }
 
+
+private val STATUS_LIST = listOf("All", "Ongoing", "Completed")
+private val TYPE_LIST = listOf("All", "Manga", "Manhwa", "Manhua")
+
+data class FilterState(
+    val status: String = "All",
+    val type: String = "All",
+    val genre: String = "Semua"
+)
+
+@Composable
+fun FilterBottomSheet(
+    initial: FilterState,
+    onApply: (FilterState) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var status by remember { mutableStateOf(initial.status) }
+    var type by remember { mutableStateOf(initial.type) }
+    var genre by remember { mutableStateOf(initial.genre) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1D27),
+        contentColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Saring", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                IconButton(onClick = onDismiss) {
+                    Text("\u2715", fontSize = 20.sp, color = PinaGray)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Status
+            Text("Status", color = PinaGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                lazyRowItems(STATUS_LIST) { s ->
+                    val active = s == status
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (active) PinaRed else PinaNavyCard)
+                            .clickable { status = s }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(s, color = Color.White, fontSize = 13.sp,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Type
+            Text("Type", color = PinaGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                lazyRowItems(TYPE_LIST) { t ->
+                    val active = t == type
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (active) PinaRed else PinaNavyCard)
+                            .clickable { type = t }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(t, color = Color.White, fontSize = 13.sp,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Genre grid
+            Text("Genre", color = PinaGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ApiService.GENRES.forEach { g ->
+                    val active = g == genre
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (active) PinaRed else PinaNavyCard)
+                            .clickable { genre = g }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(g, color = Color.White, fontSize = 12.sp,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            Button(
+                onClick = {
+                    onApply(FilterState(status = status, type = type, genre = genre))
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PinaRed),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text("Filter", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
 @Composable
 fun ExploreScreen(onMangaClick: (String) -> Unit) {
+    var filterState by remember { mutableStateOf(FilterState()) }
+    var showFilter by remember { mutableStateOf(false) }
+    val hasActiveFilter = filterState.status != "All" || filterState.type != "All" || filterState.genre != "Semua"
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Manga>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -207,8 +337,38 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
         }
     }
 
+    fun applyFilter(fs: FilterState) {
+        filterState = fs
+        selectedGenre = fs.genre
+        currentPage = 1
+        hasMore = true
+        isLoading = true
+        hasSearched = true
+        browseMode = true
+        query = ""
+        scope.launch {
+            try {
+                val items = withContext(Dispatchers.IO) {
+                    ApiService.fetchList(
+                        page = 1,
+                        type = if (fs.type == "All") null else fs.type,
+                        genre = if (fs.genre == "Semua") null else fs.genre,
+                        status = if (fs.status == "All") null else fs.status
+                    )
+                }
+                results = items
+                hasMore = items.isNotEmpty()
+                isLoading = false
+            } catch (e: Exception) {
+                results = emptyList()
+                isLoading = false
+            }
+        }
+    }
+
     fun loadGenre(genre: String) {
         selectedGenre = genre
+        filterState = filterState.copy(genre = genre)
         browseMode = true
         hasSearched = true
         isLoading = true
@@ -217,7 +377,12 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
         scope.launch {
             try {
                 val items = withContext(Dispatchers.IO) {
-                    ApiService.fetchList(page = 1, genre = if (genre == "Semua") null else genre)
+                    ApiService.fetchList(
+                        page = 1,
+                        type = if (filterState.type == "All") null else filterState.type,
+                        genre = if (genre == "Semua") null else genre,
+                        status = if (filterState.status == "All") null else filterState.status
+                    )
                 }
                 results = items
                 hasMore = items.isNotEmpty()
@@ -238,7 +403,9 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
                 val items = withContext(Dispatchers.IO) {
                     ApiService.fetchList(
                         page = nextPage,
-                        genre = if (selectedGenre == "Semua") null else selectedGenre
+                        type = if (filterState.type == "All") null else filterState.type,
+                        genre = if (selectedGenre == "Semua") null else selectedGenre,
+                        status = if (filterState.status == "All") null else filterState.status
                     )
                 }
                 if (items.isEmpty()) {
@@ -344,7 +511,7 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Cari berdasarkan nama", color = PinaGray, fontSize = 14.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text("atau pilih genre di atas", color = PinaGray, fontSize = 12.sp)
+                    Text("atau gunakan tombol Saring", color = PinaGray, fontSize = 12.sp)
                 }
             }
             else -> MangaGrid(
