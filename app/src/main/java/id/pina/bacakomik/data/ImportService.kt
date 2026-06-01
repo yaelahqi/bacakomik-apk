@@ -1,0 +1,142 @@
+package id.pina.bacakomik.data
+
+import android.content.ContentResolver
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
+
+data class BackupEntry(val title: String, val type: String, val chapter: String?)
+
+data class ImportProgress(
+    val phase: String,         // "reading" / "matching" / "done"
+    val current: Int,
+    val total: Int,
+    val matched: Int,
+    val lastTitle: String
+)
+
+object ImportService {
+    /** Copy SAF URI into cache so SQLiteDatabase can open by path */
+    fun copyUriToCache(ctx: Context, uri: Uri): File {
+        val cr: ContentResolver = ctx.contentResolver
+        val out = File(ctx.cacheDir, "import_backup_\${System.currentTimeMillis()}.db".replace("\\$", "$"))
+        cr.openInputStream(uri)?.use { input ->
+            FileOutputStream(out).use { output ->
+                input.copyTo(output)
+            }
+        } ?: throw Exception("Cannot read selected file")
+        return out
+    }
+
+    /** Read favorit + history from backup .db */
+    fun readBackup(file: File): Pair<List<BackupEntry>, List<BackupEntry>> {
+        val db = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+        val favs = mutableListOf<BackupEntry>()
+        val hist = mutableListOf<BackupEntry>()
+
+        try {
+            // favorit
+            db.rawQuery("SELECT title, type FROM favorit", null).use { c ->
+                while (c.moveToNext()) {
+                    val t = c.getString(0) ?: continue
+                    val tp = c.getString(1) ?: ""
+                    if (t.isNotBlank()) favs.add(BackupEntry(t, tp, null))
+                }
+            }
+            // history
+            try {
+                db.rawQuery("SELECT title, type, chapter FROM history", null).use { c ->
+                    while (c.moveToNext()) {
+                        val t = c.getString(0) ?: continue
+                        val tp = c.getString(1) ?: ""
+                        val ch = c.getString(2)
+                        if (t.isNotBlank()) hist.add(BackupEntry(t, tp, ch))
+                    }
+                }
+            } catch (_: Exception) {}
+        } finally {
+            db.close()
+        }
+        return favs to hist
+    }
+
+    /** Extract 3 keywords (drop stopwords) for fuzzy match */
+    private fun keywords(title: String): String {
+        val stop = setOf("the","a","an","of","and","with","to","in","on","is","my","i","ii","iii","of","s","'s")
+        val words = title.lowercase()
+            .replace(Regex("[^a-z0-9 ]"), " ")
+            .split(Regex("\s+"))
+            .filter { it.isNotBlank() && it !in stop && it.length > 1 }
+        return words.take(3).joinToString(" ")
+    }
+
+    /**
+     * Match all favorites + history via API and save matched ones to LocalStore.
+     * Calls onProgress for UI updates.
+     */
+    fun runImport(
+        ctx: Context,
+        uri: Uri,
+        store: LocalStore,
+        onProgress: (ImportProgress) -> Unit
+    ): Triple<Int, Int, Int> {
+        val cacheFile = copyUriToCache(ctx, uri)
+        try {
+            val (favs, hist) = readBackup(cacheFile)
+            val total = favs.size + hist.size
+            var processed = 0
+            var matchedFav = 0
+            var matchedHist = 0
+
+            onProgress(ImportProgress("reading", 0, total, 0, ""))
+
+            // Match favorites
+            for (entry in favs) {
+                val q = keywords(entry.title).ifBlank { entry.title }
+                try {
+                    val results = ApiService.search(q)
+                    val match = results.firstOrNull()
+                    if (match != null) {
+                        store.addFavorite(FavoriteItem(
+                            slug = match.slug,
+                            title = match.title,
+                            cover = match.cover,
+                            type = match.type,
+                            theme = match.theme,
+                            latestChapter = match.latestChapterTitle
+                        ))
+                        matchedFav++
+                    }
+                } catch (_: Exception) {
+                    // skip on network error per item
+                }
+                processed++
+                onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+            }
+
+            // Match history → save as lastRead
+            for (entry in hist) {
+                val q = keywords(entry.title).ifBlank { entry.title }
+                try {
+                    val results = ApiService.search(q)
+                    val match = results.firstOrNull()
+                    if (match != null && entry.chapter != null) {
+                        // Build chapter slug guess: <slug>-chapter-<num>
+                        val chSlug = "\${match.slug}-chapter-\${entry.chapter}".replace("\\$", "$")
+                        store.setLastRead(match.slug, chSlug, "Chapter \${entry.chapter}".replace("\\$", "$"))
+                        matchedHist++
+                    }
+                } catch (_: Exception) {}
+                processed++
+                onProgress(ImportProgress("matching", processed, total, matchedFav + matchedHist, entry.title))
+            }
+
+            onProgress(ImportProgress("done", total, total, matchedFav + matchedHist, ""))
+            return Triple(favs.size, hist.size, matchedFav + matchedHist)
+        } finally {
+            cacheFile.delete()
+        }
+    }
+}

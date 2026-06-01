@@ -118,7 +118,7 @@ fun PinaKomikApp() {
                     FavoritScreen(onMangaClick = { slug -> navController.navigate("detail/$slug") })
                 }
                 composable("me") {
-                    MeScreen()
+                    id.pina.bacakomik.ui.MeScreen()
                 }
 
                 composable(
@@ -155,20 +155,3 @@ fun PinaKomikApp() {
     }
 }
 
-@Composable
-fun MeScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize().background(PinaNavy),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("👤", fontSize = 48.sp)
-            Spacer(Modifier.height(12.dp))
-            Text("Pina Komik", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(4.dp))
-            Text("v2.1.4", fontSize = 12.sp, color = PinaGray)
-            Spacer(Modifier.height(16.dp))
-            Text("Import .db — Coming soon", fontSize = 13.sp, color = PinaGray)
-        }
-    }
-}
