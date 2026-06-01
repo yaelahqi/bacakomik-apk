@@ -27,10 +27,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import id.pina.bacakomik.ui.DetailScreen
 import id.pina.bacakomik.ui.ExploreScreen
+import id.pina.bacakomik.ui.FavoritScreen
 import id.pina.bacakomik.ui.HomeScreen
 import id.pina.bacakomik.ui.ReaderScreen
 
-// Colors
 val PinaNavy = Color(0xFF0B0D14)
 val PinaNavyLight = Color(0xFF151822)
 val PinaNavyCard = Color(0xFF1A1D2A)
@@ -46,7 +46,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinaKomikApp() {
     val navController = rememberNavController()
@@ -60,8 +59,7 @@ fun PinaKomikApp() {
         BottomNavItem("me", "Me", Icons.Filled.Person),
     )
 
-    // Hide bottom bar on detail/reader screens
-    val showBottomBar = currentRoute in listOf("home", "explore", "favorit", "me")
+    val showBottomBar = currentRoute in items.map { it.route }
 
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -111,17 +109,17 @@ fun PinaKomikApp() {
                 Modifier.padding(padding)
             ) {
                 composable("home") {
-                    HomeScreen(onMangaClick = { slug ->
-                        navController.navigate("detail/$slug")
-                    })
+                    HomeScreen(onMangaClick = { slug -> navController.navigate("detail/$slug") })
                 }
                 composable("explore") {
-                    ExploreScreen(onMangaClick = { slug ->
-                        navController.navigate("detail/$slug")
-                    })
+                    ExploreScreen(onMangaClick = { slug -> navController.navigate("detail/$slug") })
                 }
-                composable("favorit") { PlaceholderTab("📚", "Favorit") }
-                composable("me") { PlaceholderTab("👤", "Me") }
+                composable("favorit") {
+                    FavoritScreen(onMangaClick = { slug -> navController.navigate("detail/$slug") })
+                }
+                composable("me") {
+                    MeScreen()
+                }
 
                 composable(
                     "detail/{slug}",
@@ -131,19 +129,24 @@ fun PinaKomikApp() {
                     DetailScreen(
                         slug = slug,
                         onBack = { navController.popBackStack() },
-                        onChapterClick = { chSlug ->
-                            navController.navigate("reader/$chSlug")
+                        onChapterClick = { chSlug, chLabel ->
+                            navController.navigate("reader/$chSlug?label=${java.net.URLEncoder.encode(chLabel, "UTF-8")}")
                         }
                     )
                 }
 
                 composable(
-                    "reader/{chapterSlug}",
-                    arguments = listOf(navArgument("chapterSlug") { type = NavType.StringType })
+                    "reader/{chapterSlug}?label={label}",
+                    arguments = listOf(
+                        navArgument("chapterSlug") { type = NavType.StringType },
+                        navArgument("label") { type = NavType.StringType; defaultValue = "" }
+                    )
                 ) { backStack ->
                     val chSlug = backStack.arguments?.getString("chapterSlug") ?: ""
+                    val label = backStack.arguments?.getString("label") ?: ""
                     ReaderScreen(
                         chapterSlug = chSlug,
+                        chapterLabel = label,
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -153,17 +156,19 @@ fun PinaKomikApp() {
 }
 
 @Composable
-fun PlaceholderTab(emoji: String, label: String) {
+fun MeScreen() {
     Box(
         modifier = Modifier.fillMaxSize().background(PinaNavy),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = emoji, fontSize = 48.sp)
+            Text("👤", fontSize = 48.sp)
             Spacer(Modifier.height(12.dp))
-            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(6.dp))
-            Text("Coming soon...", fontSize = 14.sp, color = PinaGray)
+            Text("Pina Komik", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(4.dp))
+            Text("v2.1.4", fontSize = 12.sp, color = PinaGray)
+            Spacer(Modifier.height(16.dp))
+            Text("Import .db — Coming soon", fontSize = 13.sp, color = PinaGray)
         }
     }
 }

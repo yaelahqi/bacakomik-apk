@@ -5,11 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,9 @@ import id.pina.bacakomik.PinaNavyLight
 import id.pina.bacakomik.PinaRed
 import id.pina.bacakomik.data.ApiService
 import id.pina.bacakomik.data.ChapterItem
+import id.pina.bacakomik.data.FavoriteItem
+import id.pina.bacakomik.data.LastRead
+import id.pina.bacakomik.data.LocalStore
 import id.pina.bacakomik.data.MangaDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,23 +43,34 @@ import kotlinx.coroutines.withContext
 fun DetailScreen(
     slug: String,
     onBack: () -> Unit,
-    onChapterClick: (String) -> Unit
+    onChapterClick: (String, String) -> Unit
 ) {
+    val ctx = LocalContext.current
+    val store = remember { LocalStore(ctx) }
+
     var detail by remember { mutableStateOf<MangaDetail?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isFav by remember { mutableStateOf(store.isFavorite(slug)) }
+    var lastRead by remember { mutableStateOf<LastRead?>(store.getLastRead(slug)) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(slug) {
         scope.launch {
             try {
-                detail = withContext(Dispatchers.IO) { ApiService.fetchManga(slug) }
+                val d = withContext(Dispatchers.IO) { ApiService.fetchManga(slug) }
+                detail = d
                 isLoading = false
             } catch (e: Exception) {
                 error = e.message
                 isLoading = false
             }
         }
+    }
+
+    // Refresh lastRead when returning from reader
+    LaunchedEffect(slug) {
+        lastRead = store.getLastRead(slug)
     }
 
     Scaffold(
@@ -73,6 +88,31 @@ fun DetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        val d = detail ?: return@IconButton
+                        if (isFav) {
+                            store.removeFavorite(slug)
+                            isFav = false
+                        } else {
+                            store.addFavorite(FavoriteItem(
+                                slug = d.slug,
+                                title = d.title,
+                                cover = d.cover,
+                                type = d.type,
+                                theme = d.theme,
+                                latestChapter = d.chapters.firstOrNull()?.number ?: ""
+                            ))
+                            isFav = true
+                        }
+                    }) {
+                        Icon(
+                            if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                            "Favorite",
+                            tint = if (isFav) PinaRed else Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PinaNavyLight)
@@ -98,12 +138,27 @@ fun DetailScreen(
 
             detail != null -> {
                 val d = detail!!
+                val firstCh = d.chapters.lastOrNull()  // chapter list = newest first → oldest = last
+                val resumeCh = lastRead
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item { DetailHeader(d) }
+                    item {
+                        ActionButtons(
+                            firstChapter = firstCh,
+                            lastRead = resumeCh,
+                            onStart = { ch ->
+                                onChapterClick(ch.slug, ch.number)
+                            },
+                            onResume = { lr ->
+                                onChapterClick(lr.chapterSlug, lr.chapterLabel)
+                            }
+                        )
+                    }
                     item { DetailDescription(d) }
                     item {
                         Text(
@@ -115,9 +170,56 @@ fun DetailScreen(
                         )
                     }
                     items(d.chapters) { ch ->
-                        ChapterRow(ch) { onChapterClick(ch.slug) }
+                        ChapterRow(
+                            ch = ch,
+                            isLastRead = resumeCh?.chapterSlug == ch.slug,
+                            onClick = { onChapterClick(ch.slug, ch.number) }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionButtons(
+    firstChapter: ChapterItem?,
+    lastRead: LastRead?,
+    onStart: (ChapterItem) -> Unit,
+    onResume: (LastRead) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (firstChapter != null) {
+            Button(
+                onClick = { onStart(firstChapter) },
+                colors = ButtonDefaults.buttonColors(containerColor = PinaRed),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    "▶ Mulai Baca",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+        if (lastRead != null) {
+            Button(
+                onClick = { onResume(lastRead) },
+                colors = ButtonDefaults.buttonColors(containerColor = PinaNavyCard),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    "↻ Lanjut " + (lastRead.chapterLabel.ifBlank { "Terakhir" }),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PinaRed,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -131,7 +233,7 @@ fun DetailHeader(d: MangaDetail) {
             contentDescription = d.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(width = 110.dp, height = 160.dp)
+                .size(width = 120.dp, height = 180.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(PinaNavyCard)
         )
@@ -180,7 +282,6 @@ fun DetailDescription(d: MangaDetail) {
 
 @Composable
 fun FlowChips(items: List<String>) {
-    // Simple wrapping row using FlowRow alternative — Column of Rows
     val chunked = items.chunked(3)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         chunked.forEach { group ->
@@ -201,9 +302,11 @@ fun FlowChips(items: List<String>) {
 }
 
 @Composable
-fun ChapterRow(ch: ChapterItem, onClick: () -> Unit) {
+fun ChapterRow(ch: ChapterItem, isLastRead: Boolean, onClick: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = PinaNavyCard),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLastRead) PinaRed.copy(alpha = 0.15f) else PinaNavyCard
+        ),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
@@ -212,7 +315,18 @@ fun ChapterRow(ch: ChapterItem, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(ch.number, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(ch.number, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    if (isLastRead) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "📍 Terakhir dibaca",
+                            color = PinaRed,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 if (ch.date.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
                     Text(ch.date, color = PinaGray, fontSize = 10.sp)

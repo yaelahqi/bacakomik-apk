@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,7 @@ import id.pina.bacakomik.PinaNavyLight
 import id.pina.bacakomik.PinaRed
 import id.pina.bacakomik.data.ApiService
 import id.pina.bacakomik.data.ChapterRead
+import id.pina.bacakomik.data.LocalStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,8 +33,11 @@ import kotlinx.coroutines.withContext
 @Composable
 fun ReaderScreen(
     chapterSlug: String,
+    chapterLabel: String,
     onBack: () -> Unit
 ) {
+    val ctx = LocalContext.current
+    val store = remember { LocalStore(ctx) }
     var chapter by remember { mutableStateOf<ChapterRead?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -41,8 +46,13 @@ fun ReaderScreen(
     LaunchedEffect(chapterSlug) {
         scope.launch {
             try {
-                chapter = withContext(Dispatchers.IO) { ApiService.fetchChapter(chapterSlug) }
+                val c = withContext(Dispatchers.IO) { ApiService.fetchChapter(chapterSlug) }
+                chapter = c
                 isLoading = false
+                // Save last read for resume feature
+                if (c.mangaSlug.isNotBlank()) {
+                    store.setLastRead(c.mangaSlug, chapterSlug, chapterLabel)
+                }
             } catch (e: Exception) {
                 error = e.message
                 isLoading = false
@@ -56,7 +66,7 @@ fun ReaderScreen(
             TopAppBar(
                 title = {
                     Text(
-                        chapter?.title ?: "Loading...",
+                        chapter?.title ?: chapterLabel.ifBlank { "Loading..." },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = Color.White,
@@ -108,9 +118,7 @@ fun ReaderScreen(
                                 model = url,
                                 contentDescription = "page",
                                 contentScale = ContentScale.FillWidth,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.Black)
+                                modifier = Modifier.fillMaxWidth().background(Color.Black)
                             )
                         }
                         item {
