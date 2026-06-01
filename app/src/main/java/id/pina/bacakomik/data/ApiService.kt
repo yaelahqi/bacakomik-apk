@@ -39,7 +39,13 @@ object ApiService {
         }
     }
 
-    fun fetchList(): List<Manga> = parseItems(get("/list"))
+    fun fetchList(page: Int = 1, type: String? = null): List<Manga> {
+        val params = mutableListOf("page=$page")
+        if (!type.isNullOrBlank() && type != "All") {
+            params.add("type=${URLEncoder.encode(type, "UTF-8")}")
+        }
+        return parseItems(get("/list?" + params.joinToString("&")))
+    }
 
     fun search(query: String): List<Manga> {
         val q = URLEncoder.encode(query, "UTF-8")

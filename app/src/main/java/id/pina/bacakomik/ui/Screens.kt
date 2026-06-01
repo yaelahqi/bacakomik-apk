@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -32,19 +34,33 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val FILTER_TYPES = listOf("All", "Manhwa", "Manga", "Manhua")
+private const val MAX_PAGES = 20
+
 @Composable
 fun HomeScreen(onMangaClick: (String) -> Unit) {
     var mangaList by remember { mutableStateOf<List<Manga>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isLoadingMore by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var selectedType by remember { mutableStateOf("All") }
+    var currentPage by remember { mutableStateOf(1) }
+    var hasMore by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val gridState = rememberLazyGridState()
 
-    fun load() {
+    fun loadInitial(type: String) {
         error = null
         isLoading = true
+        currentPage = 1
+        hasMore = true
         scope.launch {
             try {
-                mangaList = withContext(Dispatchers.IO) { ApiService.fetchList() }
+                val items = withContext(Dispatchers.IO) {
+                    ApiService.fetchList(page = 1, type = type)
+                }
+                mangaList = items
+                hasMore = items.isNotEmpty()
                 isLoading = false
             } catch (e: Exception) {
                 error = e.message ?: "Unknown error"
@@ -53,7 +69,45 @@ fun HomeScreen(onMangaClick: (String) -> Unit) {
         }
     }
 
-    LaunchedEffect(Unit) { load() }
+    fun loadMore() {
+        if (isLoadingMore || !hasMore || isLoading) return
+        if (currentPage >= MAX_PAGES) { hasMore = false; return }
+        isLoadingMore = true
+        scope.launch {
+            try {
+                val nextPage = currentPage + 1
+                val items = withContext(Dispatchers.IO) {
+                    ApiService.fetchList(page = nextPage, type = selectedType)
+                }
+                if (items.isEmpty()) {
+                    hasMore = false
+                } else {
+                    val existing = mangaList.map { it.slug }.toSet()
+                    val newItems = items.filter { it.slug !in existing }
+                    mangaList = mangaList + newItems
+                    currentPage = nextPage
+                    if (newItems.isEmpty()) hasMore = false
+                }
+                isLoadingMore = false
+            } catch (e: Exception) {
+                isLoadingMore = false
+            }
+        }
+    }
+
+    LaunchedEffect(selectedType) { loadInitial(selectedType) }
+
+    // Auto-load when scrolled near end
+    LaunchedEffect(gridState, mangaList.size, hasMore, isLoadingMore) {
+        snapshotFlow {
+            val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisible to mangaList.size
+        }.collect { (lastVisible, total) ->
+            if (total > 0 && lastVisible >= total - 6 && hasMore && !isLoadingMore) {
+                loadMore()
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(PinaNavy)) {
         Text(
@@ -62,6 +116,12 @@ fun HomeScreen(onMangaClick: (String) -> Unit) {
             fontWeight = FontWeight.Bold,
             color = Color.White,
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+        )
+
+        FilterChipsRow(
+            types = FILTER_TYPES,
+            selected = selectedType,
+            onSelect = { selectedType = it }
         )
 
         when {
@@ -74,12 +134,45 @@ fun HomeScreen(onMangaClick: (String) -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Text(error ?: "", fontSize = 14.sp, color = PinaGray)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(containerColor = PinaRed)) {
-                        Text("Retry")
-                    }
+                    Button(
+                        onClick = { loadInitial(selectedType) },
+                        colors = ButtonDefaults.buttonColors(containerColor = PinaRed)
+                    ) { Text("Retry") }
                 }
             }
-            else -> MangaGrid(mangaList, onMangaClick)
+            else -> MangaGrid(
+                items = mangaList,
+                gridState = gridState,
+                isLoadingMore = isLoadingMore,
+                onMangaClick = onMangaClick
+            )
+        }
+    }
+}
+
+@Composable
+fun FilterChipsRow(types: List<String>, selected: String, onSelect: (String) -> Unit) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(types) { type ->
+            val active = type == selected
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (active) PinaRed else PinaNavyCard)
+                    .clickable { onSelect(type) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    type,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -91,6 +184,7 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val gridState = rememberLazyGridState()
 
     Column(modifier = Modifier.fillMaxSize().background(PinaNavy)) {
         Text(
@@ -147,15 +241,21 @@ fun ExploreScreen(onMangaClick: (String) -> Unit) {
             !hasSearched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Type a manga name to search", color = PinaGray, fontSize = 14.sp)
             }
-            else -> MangaGrid(results, onMangaClick)
+            else -> MangaGrid(items = results, gridState = gridState, isLoadingMore = false, onMangaClick = onMangaClick)
         }
     }
 }
 
 @Composable
-fun MangaGrid(items: List<Manga>, onMangaClick: (String) -> Unit) {
+fun MangaGrid(
+    items: List<Manga>,
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState = rememberLazyGridState(),
+    isLoadingMore: Boolean = false,
+    onMangaClick: (String) -> Unit
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
+        state = gridState,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -163,6 +263,14 @@ fun MangaGrid(items: List<Manga>, onMangaClick: (String) -> Unit) {
     ) {
         items(items, key = { it.slug }) { manga ->
             PosterCard(manga, onClick = { onMangaClick(manga.slug) })
+        }
+        if (isLoadingMore) {
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(color = PinaRed) }
+            }
         }
     }
 }
@@ -177,7 +285,6 @@ fun PosterCard(manga: Manga, onClick: () -> Unit) {
     }
 
     Column(modifier = Modifier.clickable { onClick() }) {
-        // Poster cover with type badge overlay
         Box {
             AsyncImage(
                 model = manga.cover,
@@ -189,7 +296,6 @@ fun PosterCard(manga: Manga, onClick: () -> Unit) {
                     .clip(RoundedCornerShape(8.dp))
                     .background(PinaNavyCard)
             )
-            // Bottom dark gradient + chapter overlay
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -211,7 +317,6 @@ fun PosterCard(manga: Manga, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            // Type badge top-left
             Text(
                 manga.type,
                 color = Color.White,
@@ -223,7 +328,6 @@ fun PosterCard(manga: Manga, onClick: () -> Unit) {
                     .background(typeColor, RoundedCornerShape(4.dp))
                     .padding(horizontal = 5.dp, vertical = 2.dp)
             )
-            // UpCount badge top-right
             if (!manga.upCount.isNullOrEmpty()) {
                 Text(
                     "🆕",
