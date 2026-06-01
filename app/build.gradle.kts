@@ -10,14 +10,29 @@ android {
     defaultConfig {
         applicationId = "id.pina.bacakomik"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 19
-        versionName = "2.0.9"
+        targetSdk = 33
+        versionCode = 20
+        versionName = "2.1.0"
+    }
+
+    signingConfigs {
+        create("pina") {
+            storeFile = file("pinakomik-debug.keystore")
+            storePassword = "pinakomik123"
+            keyAlias = "pinakomik"
+            keyPassword = "pinakomik123"
+        }
     }
 
     buildTypes {
-        release { isMinifyEnabled = false }
-        debug { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("pina")
+        }
+        debug {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("pina")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
