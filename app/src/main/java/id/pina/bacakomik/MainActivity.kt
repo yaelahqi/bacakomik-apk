@@ -1,31 +1,58 @@
 package id.pina.bacakomik
 
-import android.app.Activity
 import android.os.Bundle
-import android.util.Log
-import android.widget.LinearLayout
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-/**
- * v2.0.9 — ULTRA MINIMAL
- * Plain Activity (not ComponentActivity), no Application class,
- * no dependencies. If this STILL crashes, issue is signing/device.
- */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.i("PinaKomik", "minimal onCreate START")
         super.onCreate(savedInstanceState)
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0B0D14.toInt())
-            setPadding(64, 200, 64, 64)
+        setContent {
+            MaterialTheme(colorScheme = darkScheme()) {
+                Hello()
+            }
         }
-        layout.addView(TextView(this).apply {
-            text = "✅ Pina Komik\nAlive on Android ${android.os.Build.VERSION.SDK_INT}"
-            textSize = 22f
-            setTextColor(0xFFFFFFFF.toInt())
-        })
-        setContentView(layout)
-        Log.i("PinaKomik", "minimal onCreate DONE")
     }
 }
+
+@Composable
+private fun Hello() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0B0D14))
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "🎨 Compose works!",
+            color = Color(0xFFE63946),
+            fontSize = 28.sp,
+        )
+        Text(
+            text = "Step 1: ComponentActivity + Compose minimal",
+            color = Color(0xFF94A3B8),
+            fontSize = 14.sp,
+        )
+    }
+}
+
+private fun darkScheme() = androidx.compose.material3.darkColorScheme(
+    background = Color(0xFF0B0D14),
+    surface = Color(0xFF15192A),
+    primary = Color(0xFFE63946),
+)
